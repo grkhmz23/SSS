@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rust-anchor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Install Anchor Version Manager
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install 0.30.1
+          avm use 0.30.1
+          anchor --version
+
+      - name: Rust fmt
+        run: cargo fmt --check
+
+      - name: Rust clippy (programs)
+        run: cargo clippy -p sss-stablecoin -p sss-transfer-hook --all-targets -- -D warnings
+
+      - name: Anchor build
+        run: anchor build
+
+      - name: Anchor test
+        run: RUN_ANCHOR_TESTS=1 anchor test --skip-build
+
+  js-sdk-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install JS deps
+        run: pnpm install
+
+      - name: Lint
+        run: pnpm -r lint
+
+      - name: Tests
+        run: pnpm -r test
+
+  backend-compose-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker compose build
+        working-directory: backend
+        run: docker compose build

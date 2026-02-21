@@ -1,0 +1,12 @@
+[package]
+name = "trident-tests"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+name = "trident_tests"
+path = "src/lib.rs"
+
+[dependencies]
+proptest = "1.6.0"
