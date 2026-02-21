@@ -1,0 +1,17 @@
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+sss_stablecoin = "Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb"
+sss_transfer_hook = "BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "pnpm tsx tests/run-anchor-tests.ts"
