@@ -16,6 +16,8 @@ use spl_token_2022::extension::{
 use spl_token_2022::instruction as token_2022_instruction;
 use spl_token_2022::state::AccountState;
 
+mod compliance;
+
 declare_id!("Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb");
 
 const CONFIG_SEED: &[u8] = b"config";
@@ -91,7 +93,7 @@ pub mod sss_stablecoin {
         update_quota(minter_role, amount)?;
 
         if config.compliance_enabled {
-            validate_not_blacklisted(
+            compliance::validate_not_blacklisted(
                 &ctx.accounts.recipient_compliance_record,
                 &ctx.accounts.recipient.owner,
                 &ctx.accounts.mint.key(),
@@ -367,7 +369,7 @@ pub mod sss_stablecoin {
         record.mint = ctx.accounts.mint.key();
         record.wallet = ctx.accounts.wallet.key();
         record.blacklisted = true;
-        record.reason_hash = hash_reason(&reason);
+        record.reason_hash = compliance::hash_reason(&reason);
         record.updated_at = Clock::get()?.unix_timestamp;
 
         emit!(BlacklistUpdated {
@@ -418,7 +420,7 @@ pub mod sss_stablecoin {
         require!(is_seizer(config, &ctx.accounts.authority.key()), StablecoinError::Unauthorized);
 
         if config.seize_requires_blacklist && !args.override_requires_blacklist {
-            validate_blacklisted(
+            compliance::validate_blacklisted(
                 &ctx.accounts.source_compliance_record,
                 &ctx.accounts.source.owner,
                 &ctx.accounts.mint.key(),
@@ -638,53 +640,6 @@ fn compute_quota_update(
         .ok_or(StablecoinError::MathOverflow)?;
     require!(updated <= quota_amount, StablecoinError::QuotaExceeded);
     Ok((next_window_start, updated))
-}
-
-fn validate_not_blacklisted(
-    record: &UncheckedAccount,
-    wallet: &Pubkey,
-    mint: &Pubkey,
-) -> Result<()> {
-    let (expected, _) =
-        Pubkey::find_program_address(&[COMPLIANCE_RECORD_SEED, mint.as_ref(), wallet.as_ref()], &crate::ID);
-    require_keys_eq!(expected, record.key(), StablecoinError::InvalidComplianceRecord);
-
-    if record.owner != &crate::ID {
-        return Ok(());
-    }
-
-    let parsed = parse_compliance_record(record)?;
-    require_keys_eq!(parsed.wallet, *wallet, StablecoinError::InvalidComplianceRecord);
-    require_keys_eq!(parsed.mint, *mint, StablecoinError::InvalidComplianceRecord);
-    require!(!parsed.blacklisted, StablecoinError::WalletBlacklisted);
-
-    Ok(())
-}
-
-fn validate_blacklisted(record: &UncheckedAccount, wallet: &Pubkey, mint: &Pubkey) -> Result<()> {
-    let (expected, _) =
-        Pubkey::find_program_address(&[COMPLIANCE_RECORD_SEED, mint.as_ref(), wallet.as_ref()], &crate::ID);
-    require_keys_eq!(expected, record.key(), StablecoinError::InvalidComplianceRecord);
-    require_keys_eq!(*record.owner, crate::ID, StablecoinError::InvalidComplianceRecord);
-    let parsed = parse_compliance_record(record)?;
-    require_keys_eq!(parsed.wallet, *wallet, StablecoinError::InvalidComplianceRecord);
-    require_keys_eq!(parsed.mint, *mint, StablecoinError::InvalidComplianceRecord);
-    require!(parsed.blacklisted, StablecoinError::WalletNotBlacklisted);
-
-    Ok(())
-}
-
-fn parse_compliance_record(record: &UncheckedAccount) -> Result<ComplianceRecord> {
-    let data = record.try_borrow_data()?;
-    if data.len() < 8 {
-        return err!(StablecoinError::InvalidComplianceRecord);
-    }
-
-    ComplianceRecord::try_deserialize(&mut &data[..]).map_err(|_| error!(StablecoinError::InvalidComplianceRecord))
-}
-
-fn hash_reason(reason: &str) -> [u8; 32] {
-    anchor_lang::solana_program::hash::hash(reason.as_bytes()).to_bytes()
 }
 
 fn require_master(config: &StablecoinConfig, signer: &Pubkey) -> Result<()> {
