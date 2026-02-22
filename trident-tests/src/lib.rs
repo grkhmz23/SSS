@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 struct QuotaState {
     window_start_ts: i64,
@@ -8,6 +9,7 @@ struct QuotaState {
     quota_amount: u64,
 }
 
+#[allow(dead_code)]
 impl QuotaState {
     fn try_mint(&mut self, now: i64, amount: u64) -> bool {
         if now.saturating_sub(self.window_start_ts) >= self.window_seconds {
@@ -25,6 +27,7 @@ impl QuotaState {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Role {
     Master,
@@ -34,6 +37,7 @@ enum Role {
     Seizer,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 struct RoleState {
     master: u64,
@@ -43,6 +47,7 @@ struct RoleState {
     seizer: u64,
 }
 
+#[allow(dead_code)]
 impl RoleState {
     fn transfer_master(&mut self, signer: u64, new_master: u64) -> bool {
         if signer != self.master {
