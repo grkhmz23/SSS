@@ -1,0 +1,15 @@
+Scope: 7 of 8 workspace projects
+backend/shared lint$ eslint "src/**/*.ts"
+sdk/core lint$ eslint "src/**/*.ts"
+tests lint$ eslint "**/*.ts"
+tests lint: Done
+backend/shared lint: Done
+sdk/core lint: Done
+backend/compliance lint$ eslint "src/**/*.ts"
+backend/indexer lint$ eslint "src/**/*.ts"
+backend/mint-burn lint$ eslint "src/**/*.ts"
+sdk/cli lint$ eslint "src/**/*.ts"
+backend/compliance lint: Done
+backend/indexer lint: Done
+backend/mint-burn lint: Done
+sdk/cli lint: Done

@@ -1,0 +1,13 @@
+ WARN  post https://registry.npmjs.org/-/npm/v1/security/audits error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  post https://registry.npmjs.org/-/npm/v1/security/audits error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ EAI_AGAIN  request to https://registry.npmjs.org/-/npm/v1/security/audits failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+
+FetchError: request to https://registry.npmjs.org/-/npm/v1/security/audits failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+    at ClientRequest.<anonymous> (/home/codespace/.local/share/pnpm/.tools/pnpm/10.6.0_tmp_5139/node_modules/pnpm/dist/pnpm.cjs:64151:18)
+    at ClientRequest.emit (node:events:508:28)
+    at emitErrorEvent (node:_http_client:108:11)
+    at TLSSocket.socketErrorListener (node:_http_client:575:5)
+    at TLSSocket.emit (node:events:520:35)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)

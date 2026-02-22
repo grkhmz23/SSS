@@ -1,0 +1,4 @@
+
+> @stbr/backend-shared@0.1.0 lint /workspaces/SSS/backend/shared
+> eslint "src/**/*.ts"
+

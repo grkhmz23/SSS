@@ -1,0 +1,9 @@
+Scope: 7 of 8 workspace projects
+backend/shared test$ vitest run
+sdk/core test$ vitest run
+tests test$ vitest run
+backend/shared test: Failed
+/workspaces/SSS/backend/shared:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @stbr/backend-shared@0.1.0 test: `vitest run`
+Exit status 1
+sdk/core test: Done
