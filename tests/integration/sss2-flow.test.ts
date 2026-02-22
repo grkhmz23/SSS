@@ -22,6 +22,96 @@ function providerPayer(provider: anchor.AnchorProvider): Keypair {
 }
 
 describe('SSS-2 flow', () => {
+  itIf('transfer hook init requires master authority', async () => {
+    const provider = anchor.AnchorProvider.env();
+    anchor.setProvider(provider);
+
+    const stablecoin = anchor.workspace.SssStablecoin as anchor.Program;
+    const transferHook = anchor.workspace.SssTransferHook as anchor.Program;
+
+    const authority = providerPayer(provider);
+    const mint = Keypair.generate();
+
+    const [config] = PublicKey.findProgramAddressSync(
+      [Buffer.from('config'), mint.publicKey.toBuffer()],
+      stablecoin.programId,
+    );
+    const [masterMinterRole] = PublicKey.findProgramAddressSync(
+      [Buffer.from('minter'), config.toBuffer(), authority.publicKey.toBuffer()],
+      stablecoin.programId,
+    );
+
+    const treasuryOwner = Keypair.generate();
+    const treasuryAta = getAssociatedTokenAddressSync(
+      mint.publicKey,
+      treasuryOwner.publicKey,
+      false,
+      TOKEN_2022_PROGRAM_ID,
+    );
+
+    await stablecoin.methods
+      .initialize({
+        name: 'SSS Two',
+        symbol: 'SS2',
+        uri: 'https://example.org/ss2.json',
+        decimals: 6,
+        preset: { sss2: {} },
+        enableCompliance: true,
+        enablePermanentDelegate: true,
+        enableTransferHook: true,
+        defaultAccountFrozen: false,
+        seizeRequiresBlacklist: true,
+        transferHookProgram: HOOK_PROGRAM_ID,
+        roles: {
+          pauser: null,
+          burner: null,
+          blacklister: null,
+          seizer: null,
+          treasury: treasuryAta,
+        },
+        initialMinterQuota: new anchor.BN(10_000_000_000),
+        initialMinterWindowSeconds: new anchor.BN(86400),
+      })
+      .accounts({
+        payer: authority.publicKey,
+        authority: authority.publicKey,
+        config,
+        masterMinterRole,
+        mint: mint.publicKey,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([mint])
+      .rpc();
+
+    const [hookConfig] = PublicKey.findProgramAddressSync(
+      [Buffer.from('hook-config'), mint.publicKey.toBuffer()],
+      transferHook.programId,
+    );
+
+    const badAuthority = Keypair.generate();
+    await expect(
+      transferHook.methods
+        .initializeHook({
+          stablecoinProgram: stablecoin.programId,
+          stablecoinConfig: config,
+          treasuryTokenAccount: treasuryAta,
+          enforcePause: true,
+        })
+        .accounts({
+          payer: authority.publicKey,
+          authority: badAuthority.publicKey,
+          hookConfig,
+          stablecoinProgram: stablecoin.programId,
+          stablecoinConfig: config,
+          mint: mint.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([badAuthority])
+        .rpc(),
+    ).rejects.toThrowError();
+  });
+
   itIf('init -> mint -> transfer -> blacklist -> transfer fails -> seize', async () => {
     const provider = anchor.AnchorProvider.env();
     anchor.setProvider(provider);

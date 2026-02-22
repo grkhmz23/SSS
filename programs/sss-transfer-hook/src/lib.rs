@@ -18,6 +18,45 @@ pub mod sss_transfer_hook {
     use super::*;
 
     pub fn initialize_hook(ctx: Context<InitializeHook>, args: InitializeHookArgs) -> Result<()> {
+        require_keys_eq!(
+            args.stablecoin_program,
+            ctx.accounts.stablecoin_program.key(),
+            HookError::InvalidStablecoinProgram
+        );
+        require_keys_eq!(
+            args.stablecoin_config,
+            ctx.accounts.stablecoin_config.key(),
+            HookError::InvalidStablecoinConfig
+        );
+        require_keys_eq!(
+            ctx.accounts.stablecoin_config.owner,
+            ctx.accounts.stablecoin_program.key(),
+            HookError::InvalidStablecoinProgram
+        );
+
+        let stablecoin_view = read_anchor_payload::<StablecoinConfigSnapshot>(
+            &ctx.accounts.stablecoin_config.to_account_info(),
+        )?;
+        require_keys_eq!(
+            stablecoin_view.mint,
+            ctx.accounts.mint.key(),
+            HookError::InvalidMint
+        );
+        require!(
+            stablecoin_view.transfer_hook_enabled,
+            HookError::TransferHookDisabled
+        );
+        require_keys_eq!(
+            stablecoin_view.master_authority,
+            ctx.accounts.authority.key(),
+            HookError::Unauthorized
+        );
+        require_keys_eq!(
+            stablecoin_view.treasury,
+            args.treasury_token_account,
+            HookError::InvalidTokenAccount
+        );
+
         let hook_config = &mut ctx.accounts.hook_config;
         hook_config.bump = ctx.bumps.hook_config;
         hook_config.mint = ctx.accounts.mint.key();
@@ -298,6 +337,7 @@ fn read_anchor_payload<T: BorshDeserialize>(account_info: &AccountInfo) -> Resul
 pub struct InitializeHook<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
+    pub authority: Signer<'info>,
 
     #[account(
         init,
@@ -308,8 +348,12 @@ pub struct InitializeHook<'info> {
     )]
     pub hook_config: Account<'info, HookConfig>,
 
-    /// CHECK: mint is validated by PDA relationship and client-side creation flow.
-    pub mint: UncheckedAccount<'info>,
+    /// CHECK: program id is validated against the stablecoin config owner.
+    pub stablecoin_program: UncheckedAccount<'info>,
+    /// CHECK: owner and layout validated in instruction.
+    pub stablecoin_config: UncheckedAccount<'info>,
+
+    pub mint: InterfaceAccount<'info, Mint>,
     pub system_program: Program<'info, System>,
 }
 
@@ -493,6 +537,8 @@ pub enum HookError {
     DestinationBlacklisted,
     #[msg("Transfers are paused")]
     TransfersPaused,
+    #[msg("Transfer hook is disabled")]
+    TransferHookDisabled,
     #[msg("Invalid compliance record PDA")]
     InvalidComplianceRecord,
     #[msg("Invalid stablecoin program account")]

@@ -8,7 +8,10 @@ export const SSS_TRANSFER_HOOK_IDL = {
       name: 'initializeHook',
       accounts: [
         { name: 'payer', isMut: true, isSigner: true },
+        { name: 'authority', isMut: false, isSigner: true },
         { name: 'hookConfig', isMut: true, isSigner: false },
+        { name: 'stablecoinProgram', isMut: false, isSigner: false },
+        { name: 'stablecoinConfig', isMut: false, isSigner: false },
         { name: 'mint', isMut: false, isSigner: false },
         { name: 'systemProgram', isMut: false, isSigner: false },
       ],

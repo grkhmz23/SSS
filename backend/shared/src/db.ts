@@ -29,4 +29,17 @@ export async function runMigrations(pool: Pool): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mint_burn_requests (
+      id BIGSERIAL PRIMARY KEY,
+      action TEXT NOT NULL,
+      request_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      signature TEXT,
+      error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(action, request_id)
+    );
+  `);
 }

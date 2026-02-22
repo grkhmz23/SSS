@@ -1,6 +1,13 @@
 import fs from 'node:fs';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { createLogger, createPool, loadEnv, runMigrations } from '@stbr/backend-shared';
+import {
+  createLogger,
+  createPool,
+  loadEnv,
+  runMigrations,
+  parseAllowedHosts,
+  validateWebhookUrl,
+} from '@stbr/backend-shared';
 import express from 'express';
 
 interface IndexedEvent {
@@ -124,6 +131,14 @@ async function indexOnce(params: {
 async function main(): Promise<void> {
   const env = loadEnv({ PORT: Number(process.env.PORT ?? 8082) });
   const logger = createLogger('indexer');
+  const allowedHosts = parseAllowedHosts(env.WEBHOOK_ALLOWED_HOSTS);
+  const webhookUrl = env.WEBHOOK_URL
+    ? validateWebhookUrl(env.WEBHOOK_URL, allowedHosts)
+    : { ok: true, url: undefined };
+
+  if (!webhookUrl.ok) {
+    throw new Error(webhookUrl.reason ?? 'invalid webhook URL');
+  }
 
   const lock = JSON.parse(fs.readFileSync(env.SSS_LOCKFILE_PATH, 'utf8')) as {
     stablecoinProgramId: string;
@@ -140,7 +155,7 @@ async function main(): Promise<void> {
       connection,
       programId,
       pool,
-      webhookUrl: env.WEBHOOK_URL,
+      webhookUrl: webhookUrl.url?.toString(),
       webhookRetries: env.WEBHOOK_MAX_RETRIES,
       logger,
     }).catch((error) => logger.error({ error }, 'index cycle failed'));

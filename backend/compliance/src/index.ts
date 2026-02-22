@@ -1,6 +1,13 @@
 import fs from 'node:fs';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { createLogger, createPool, loadEnv, runMigrations } from '@stbr/backend-shared';
+import {
+  createLogger,
+  createPool,
+  loadEnv,
+  runMigrations,
+  extractRawBody,
+  verifySignature,
+} from '@stbr/backend-shared';
 import { SolanaStablecoin } from '@stbr/sss-token';
 import express from 'express';
 import { z } from 'zod';
@@ -17,6 +24,10 @@ const RemoveSchema = z.object({
 async function main(): Promise<void> {
   const env = loadEnv({ PORT: Number(process.env.PORT ?? 8083) });
   const logger = createLogger('compliance');
+  if (!env.REQUEST_SIGNING_SECRET) {
+    throw new Error('REQUEST_SIGNING_SECRET is required for compliance service');
+  }
+  const signingSecret = env.REQUEST_SIGNING_SECRET;
 
   const lock = JSON.parse(fs.readFileSync(env.SSS_LOCKFILE_PATH, 'utf8')) as {
     mint: string;
@@ -41,7 +52,13 @@ async function main(): Promise<void> {
   await runMigrations(pool);
 
   const app = express();
-  app.use(express.json());
+  app.use(
+    express.json({
+      verify: (req, _res, buf) => {
+        (req as express.Request & { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+      },
+    }),
+  );
 
   app.get('/health', async (_req, res) => {
     await pool.query('SELECT 1');
@@ -49,6 +66,20 @@ async function main(): Promise<void> {
   });
 
   app.post('/blacklist/add', async (req, res) => {
+    const rawBody = extractRawBody(req);
+    if (!rawBody) {
+      res.status(400).json({ ok: false, error: 'missing raw request body' });
+      return;
+    }
+    const verified = verifySignature(
+      rawBody,
+      signingSecret,
+      req.header('x-request-signature') ?? undefined,
+    );
+    if (!verified.ok) {
+      res.status(401).json({ ok: false, error: verified.reason });
+      return;
+    }
     const parsed = AddSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, error: parsed.error.flatten() });
@@ -79,6 +110,20 @@ async function main(): Promise<void> {
   });
 
   app.post('/blacklist/remove', async (req, res) => {
+    const rawBody = extractRawBody(req);
+    if (!rawBody) {
+      res.status(400).json({ ok: false, error: 'missing raw request body' });
+      return;
+    }
+    const verified = verifySignature(
+      rawBody,
+      signingSecret,
+      req.header('x-request-signature') ?? undefined,
+    );
+    if (!verified.ok) {
+      res.status(401).json({ ok: false, error: verified.reason });
+      return;
+    }
     const parsed = RemoveSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, error: parsed.error.flatten() });
@@ -133,6 +178,16 @@ async function main(): Promise<void> {
   });
 
   app.get('/audit/export', async (req, res) => {
+    const rawBody = extractRawBody(req) ?? Buffer.from('');
+    const verified = verifySignature(
+      rawBody,
+      signingSecret,
+      req.header('x-request-signature') ?? undefined,
+    );
+    if (!verified.ok) {
+      res.status(401).json({ ok: false, error: verified.reason });
+      return;
+    }
     const action = req.query.action as string | undefined;
     const format = (req.query.format as string | undefined) ?? 'json';
 

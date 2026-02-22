@@ -7,7 +7,9 @@ const EnvSchema = z.object({
   RPC_URL: z.string().default('http://host.docker.internal:8899'),
   SSS_LOCKFILE_PATH: z.string().default('/app/sss.lock.json'),
   SSS_KEYPAIR_PATH: z.string().default('/app/secrets/id.json'),
+  REQUEST_SIGNING_SECRET: z.string().optional(),
   WEBHOOK_URL: z.string().optional(),
+  WEBHOOK_ALLOWED_HOSTS: z.string().optional(),
   WEBHOOK_MAX_RETRIES: z.coerce.number().default(3),
   POLL_INTERVAL_MS: z.coerce.number().default(4000),
 });

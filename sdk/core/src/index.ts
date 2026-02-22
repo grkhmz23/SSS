@@ -272,10 +272,16 @@ export class SolanaStablecoin {
         })
         .accounts({
           payer: payer.publicKey,
+          authority: authority.publicKey,
           hookConfig: transferHookConfig,
+          stablecoinProgram: stablecoinProgramId,
+          stablecoinConfig: config,
           mint: mint.publicKey,
           systemProgram: SystemProgram.programId,
         })
+        .signers(
+          authority.publicKey.equals(payer.publicKey) ? [] : [authority as Signer],
+        )
         .rpc();
 
       await transferHookProgram.methods
