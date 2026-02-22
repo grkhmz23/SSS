@@ -2,19 +2,16 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{program::invoke, system_instruction};
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{
-    burn, freeze_account, mint_to, thaw_account, transfer_checked, Burn, Mint, MintTo, TokenAccount,
-    TransferChecked,
+    transfer_checked, Burn, FreezeAccount, Mint, MintTo, ThawAccount, TokenAccount, TransferChecked,
 };
 use spl_token_2022::extension::{
     default_account_state::instruction as default_account_state_instruction,
     metadata_pointer::instruction as metadata_pointer_instruction,
-    permanent_delegate::instruction as permanent_delegate_instruction,
-    token_metadata::instruction as token_metadata_instruction,
-    transfer_hook::instruction as transfer_hook_instruction,
-    ExtensionType,
+    transfer_hook::instruction as transfer_hook_instruction, ExtensionType,
 };
 use spl_token_2022::instruction as token_2022_instruction;
 use spl_token_2022::state::AccountState;
+use spl_token_metadata_interface::instruction as token_metadata_instruction;
 
 mod compliance;
 
@@ -41,7 +38,10 @@ pub mod sss_stablecoin {
         config.master_authority = ctx.accounts.authority.key();
         config.pauser = args.roles.pauser.unwrap_or(ctx.accounts.authority.key());
         config.burner = args.roles.burner.unwrap_or(ctx.accounts.authority.key());
-        config.blacklister = args.roles.blacklister.unwrap_or(ctx.accounts.authority.key());
+        config.blacklister = args
+            .roles
+            .blacklister
+            .unwrap_or(ctx.accounts.authority.key());
         config.seizer = args.roles.seizer.unwrap_or(ctx.accounts.authority.key());
         config.treasury = args.roles.treasury;
         config.compliance_enabled = args.enable_compliance;
@@ -78,7 +78,11 @@ pub mod sss_stablecoin {
     pub fn mint(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
         let config = &ctx.accounts.config;
         require!(!config.paused, StablecoinError::Paused);
-        require_keys_eq!(config.mint, ctx.accounts.mint.key(), StablecoinError::InvalidMint);
+        require_keys_eq!(
+            config.mint,
+            ctx.accounts.mint.key(),
+            StablecoinError::InvalidMint
+        );
         require_keys_eq!(
             ctx.accounts.recipient.mint,
             ctx.accounts.mint.key(),
@@ -109,7 +113,7 @@ pub mod sss_stablecoin {
             to: ctx.accounts.recipient.to_account_info(),
             authority: ctx.accounts.config.to_account_info(),
         };
-        mint_to(
+        anchor_spl::token_interface::mint_to(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 cpi_accounts,
@@ -148,7 +152,10 @@ pub mod sss_stablecoin {
                 from: ctx.accounts.from.to_account_info(),
                 authority: ctx.accounts.authority.to_account_info(),
             };
-            burn(CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts), amount)?;
+            anchor_spl::token_interface::burn(
+                CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts),
+                amount,
+            )?;
         } else {
             require!(is_burner(config, &signer), StablecoinError::Unauthorized);
             require!(
@@ -164,7 +171,7 @@ pub mod sss_stablecoin {
                 from: ctx.accounts.from.to_account_info(),
                 authority: ctx.accounts.config.to_account_info(),
             };
-            burn(
+            anchor_spl::token_interface::burn(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
                     cpi_accounts,
@@ -187,7 +194,10 @@ pub mod sss_stablecoin {
     pub fn freeze_account(ctx: Context<FreezeThaw>, target: Pubkey) -> Result<()> {
         let config = &ctx.accounts.config;
         require!(!config.paused, StablecoinError::Paused);
-        require!(is_pauser(config, &ctx.accounts.authority.key()), StablecoinError::Unauthorized);
+        require!(
+            is_pauser(config, &ctx.accounts.authority.key()),
+            StablecoinError::Unauthorized
+        );
         require_keys_eq!(
             target,
             ctx.accounts.token_account.key(),
@@ -198,12 +208,12 @@ pub mod sss_stablecoin {
         let config_seeds: &[&[u8]] = &[CONFIG_SEED, mint_key.as_ref(), &[config.bump]];
         let signer_seeds: &[&[&[u8]]] = &[config_seeds];
 
-        let cpi_accounts = anchor_spl::token_interface::FreezeAccount {
+        let cpi_accounts = FreezeAccount {
             account: ctx.accounts.token_account.to_account_info(),
             mint: ctx.accounts.mint.to_account_info(),
             authority: ctx.accounts.config.to_account_info(),
         };
-        freeze_account(CpiContext::new_with_signer(
+        anchor_spl::token_interface::freeze_account(CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             cpi_accounts,
             signer_seeds,
@@ -220,7 +230,10 @@ pub mod sss_stablecoin {
 
     pub fn thaw_account(ctx: Context<FreezeThaw>, target: Pubkey) -> Result<()> {
         let config = &ctx.accounts.config;
-        require!(is_pauser(config, &ctx.accounts.authority.key()), StablecoinError::Unauthorized);
+        require!(
+            is_pauser(config, &ctx.accounts.authority.key()),
+            StablecoinError::Unauthorized
+        );
         require_keys_eq!(
             target,
             ctx.accounts.token_account.key(),
@@ -231,12 +244,12 @@ pub mod sss_stablecoin {
         let config_seeds: &[&[u8]] = &[CONFIG_SEED, mint_key.as_ref(), &[config.bump]];
         let signer_seeds: &[&[&[u8]]] = &[config_seeds];
 
-        let cpi_accounts = anchor_spl::token_interface::ThawAccount {
+        let cpi_accounts = ThawAccount {
             account: ctx.accounts.token_account.to_account_info(),
             mint: ctx.accounts.mint.to_account_info(),
             authority: ctx.accounts.config.to_account_info(),
         };
-        thaw_account(CpiContext::new_with_signer(
+        anchor_spl::token_interface::thaw_account(CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             cpi_accounts,
             signer_seeds,
@@ -253,7 +266,10 @@ pub mod sss_stablecoin {
 
     pub fn pause(ctx: Context<AdminAction>) -> Result<()> {
         let config = &mut ctx.accounts.config;
-        require!(is_pauser(config, &ctx.accounts.authority.key()), StablecoinError::Unauthorized);
+        require!(
+            is_pauser(config, &ctx.accounts.authority.key()),
+            StablecoinError::Unauthorized
+        );
         config.paused = true;
 
         emit!(Paused {
@@ -266,7 +282,10 @@ pub mod sss_stablecoin {
 
     pub fn unpause(ctx: Context<AdminAction>) -> Result<()> {
         let config = &mut ctx.accounts.config;
-        require!(is_pauser(config, &ctx.accounts.authority.key()), StablecoinError::Unauthorized);
+        require!(
+            is_pauser(config, &ctx.accounts.authority.key()),
+            StablecoinError::Unauthorized
+        );
         config.paused = false;
 
         emit!(Unpaused {
@@ -341,6 +360,7 @@ pub mod sss_stablecoin {
     pub fn transfer_authority(ctx: Context<TransferAuthority>, new_master: Pubkey) -> Result<()> {
         let config = &mut ctx.accounts.config;
         require_master(config, &ctx.accounts.authority.key())?;
+        require!(config.paused, StablecoinError::NotPaused);
         let old_master = config.master_authority;
         config.master_authority = new_master;
 
@@ -353,12 +373,12 @@ pub mod sss_stablecoin {
         Ok(())
     }
 
-    pub fn add_to_blacklist(
-        ctx: Context<UpsertComplianceRecord>,
-        reason: String,
-    ) -> Result<()> {
+    pub fn add_to_blacklist(ctx: Context<UpsertComplianceRecord>, reason: String) -> Result<()> {
         let config = &ctx.accounts.config;
-        require!(config.compliance_enabled, StablecoinError::ComplianceDisabled);
+        require!(
+            config.compliance_enabled,
+            StablecoinError::ComplianceDisabled
+        );
         require!(
             is_blacklister(config, &ctx.accounts.authority.key()),
             StablecoinError::Unauthorized
@@ -385,7 +405,10 @@ pub mod sss_stablecoin {
 
     pub fn remove_from_blacklist(ctx: Context<UpsertComplianceRecord>) -> Result<()> {
         let config = &ctx.accounts.config;
-        require!(config.compliance_enabled, StablecoinError::ComplianceDisabled);
+        require!(
+            config.compliance_enabled,
+            StablecoinError::ComplianceDisabled
+        );
         require!(
             is_blacklister(config, &ctx.accounts.authority.key()),
             StablecoinError::Unauthorized
@@ -412,12 +435,18 @@ pub mod sss_stablecoin {
 
     pub fn seize(ctx: Context<Seize>, args: SeizeArgs) -> Result<()> {
         let config = &ctx.accounts.config;
-        require!(config.compliance_enabled, StablecoinError::ComplianceDisabled);
+        require!(
+            config.compliance_enabled,
+            StablecoinError::ComplianceDisabled
+        );
         require!(
             config.permanent_delegate_enabled,
             StablecoinError::PermanentDelegateDisabled
         );
-        require!(is_seizer(config, &ctx.accounts.authority.key()), StablecoinError::Unauthorized);
+        require!(
+            is_seizer(config, &ctx.accounts.authority.key()),
+            StablecoinError::Unauthorized
+        );
 
         if config.seize_requires_blacklist && !args.override_requires_blacklist {
             compliance::validate_blacklisted(
@@ -481,25 +510,40 @@ pub mod sss_stablecoin {
 fn validate_preset(args: &InitializeArgs) -> Result<()> {
     match args.preset {
         Preset::Sss1 => {
-            require!(!args.enable_compliance, StablecoinError::InvalidPresetConfiguration);
+            require!(
+                !args.enable_compliance,
+                StablecoinError::InvalidPresetConfiguration
+            );
             require!(
                 !args.enable_permanent_delegate,
                 StablecoinError::InvalidPresetConfiguration
             );
-            require!(!args.enable_transfer_hook, StablecoinError::InvalidPresetConfiguration);
+            require!(
+                !args.enable_transfer_hook,
+                StablecoinError::InvalidPresetConfiguration
+            );
         }
         Preset::Sss2 => {
-            require!(args.enable_compliance, StablecoinError::InvalidPresetConfiguration);
+            require!(
+                args.enable_compliance,
+                StablecoinError::InvalidPresetConfiguration
+            );
             require!(
                 args.enable_permanent_delegate,
                 StablecoinError::InvalidPresetConfiguration
             );
-            require!(args.enable_transfer_hook, StablecoinError::InvalidPresetConfiguration);
+            require!(
+                args.enable_transfer_hook,
+                StablecoinError::InvalidPresetConfiguration
+            );
         }
     }
 
     require!(args.initial_minter_quota > 0, StablecoinError::InvalidQuota);
-    require!(args.initial_minter_window_seconds > 0, StablecoinError::InvalidQuota);
+    require!(
+        args.initial_minter_window_seconds > 0,
+        StablecoinError::InvalidQuota
+    );
     Ok(())
 }
 
@@ -518,8 +562,9 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
         extensions.push(ExtensionType::DefaultAccountState);
     }
 
-    let mint_len = ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&extensions)
-        .map_err(|_| error!(StablecoinError::MintSizingFailed))?;
+    let mint_len =
+        ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&extensions)
+            .map_err(|_| error!(StablecoinError::MintSizingFailed))?;
     let lamports = Rent::get()?.minimum_balance(mint_len);
 
     invoke(
@@ -549,10 +594,10 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
 
     if args.enable_permanent_delegate {
         invoke(
-            &permanent_delegate_instruction::initialize(
+            &token_2022_instruction::initialize_permanent_delegate(
                 &ctx.accounts.token_program.key(),
                 &mint_key,
-                Some(config_key),
+                &config_key,
             )?,
             &[ctx.accounts.mint.to_account_info()],
         )?;
@@ -572,7 +617,7 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
 
     if args.default_account_frozen {
         invoke(
-            &default_account_state_instruction::initialize(
+            &default_account_state_instruction::initialize_default_account_state(
                 &ctx.accounts.token_program.key(),
                 &mint_key,
                 &AccountState::Frozen,
@@ -643,7 +688,11 @@ fn compute_quota_update(
 }
 
 fn require_master(config: &StablecoinConfig, signer: &Pubkey) -> Result<()> {
-    require_keys_eq!(config.master_authority, *signer, StablecoinError::Unauthorized);
+    require_keys_eq!(
+        config.master_authority,
+        *signer,
+        StablecoinError::Unauthorized
+    );
     Ok(())
 }
 
@@ -1111,6 +1160,8 @@ pub enum StablecoinError {
     Unauthorized,
     #[msg("Program is paused")]
     Paused,
+    #[msg("Program must be paused for this operation")]
+    NotPaused,
     #[msg("Mint does not match config")]
     InvalidMint,
     #[msg("Invalid treasury token account")]
