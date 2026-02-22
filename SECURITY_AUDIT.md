@@ -18,7 +18,7 @@ Branch: `security/audit-20260221`
 | SSS-003 | High | Compliance Service | No auth on blacklist mutations or audit export. |
 | SSS-004 | High | Mint/Burn Service | No idempotency enforcement despite `requestId` field. |
 | SSS-005 | High | Indexer | Webhook URL not allowlisted; SSRF possible. |
-| SSS-006 | Medium | Program Governance | Master authority transfer not gated by pause. |
+| SSS-006 | Medium | Program Governance | Master authority transfer not gated by pause. **FIXED** |
 
 ## Detailed Findings
 
@@ -103,7 +103,7 @@ Branch: `security/audit-20260221`
 **Affected Files/Lines:**
 - `programs/sss-stablecoin/src/lib.rs` (`transfer_authority` does not require `paused`)
 
-**Remediation:** Consider requiring `paused == true` for authority transfer. No change applied to avoid spec changes; consider adding governance guidance and tests if this becomes a requirement.
+**Remediation:** Require `paused == true` for authority transfer. Implemented in `programs/sss-stablecoin/src/lib.rs:transfer_authority` with new `NotPaused` error variant.
 
 ## Fixes Applied
 - Enforced authenticated transfer-hook initialization and validated stablecoin config ownership/mint/authority. (`programs/sss-transfer-hook/src/lib.rs`)
@@ -112,17 +112,26 @@ Branch: `security/audit-20260221`
 - Added webhook URL allowlist validation to prevent SSRF. (`backend/shared/src/webhook.ts`, `backend/indexer/src/index.ts`)
 - Updated SDK transfer-hook initialization to include authority signer and new accounts. (`sdk/core/src/index.ts`, `sdk/core/src/idl/sssTransferHook.ts`)
 - Added tests for signature verification, webhook allowlist, idempotency, and transfer-hook authorization. (`backend/shared/src/auth.test.ts`, `backend/shared/src/webhook.test.ts`, `backend/mint-burn/src/idempotency.test.ts`, `tests/integration/sss2-flow.test.ts`)
+- **SSS-006**: Gated `transfer_authority` behind `paused` requirement. (`programs/sss-stablecoin/src/lib.rs`)
+- Fixed dependency resolution for solana-program 1.18.x compatibility. (`Cargo.toml`, `programs/sss-stablecoin/Cargo.toml`)
 
 ## Remaining Recommendations (Non-Blocking)
-- Gate `transfer_authority` with `paused` to reduce operational risk.
 - Add request rate-limiting on mint/burn endpoints.
 - Add structured logging redaction tests for secrets.
 - Consider timeouts/retries for RPC calls in backend services.
+- Monitor upstream `bigint-buffer` vulnerability (GHSA-3gc7-fjrx-p6mg) for patched release.
 
 ## Tooling / Scanner Notes
-Some scanners were unavailable in the environment:
-- `cargo`, `anchor`, `trivy`, `gitleaks` were not installed.
-- `pnpm audit --prod` failed due to registry network resolution.
-- `pnpm -r test` failed because `backend/shared` could not resolve `zod` at test time.
+Environment setup completed:
+- ✅ `cargo` — Installed rustup with nightly toolchain
+- ✅ `anchor` — Installed anchor-cli 0.30.1 via npm
+- ✅ `pnpm` — Installed dependencies and tests pass
+- ❌ `anchor build` — Fails due to vendored cargo edition2024 incompatibility; use `cargo build` instead
+- ✅ `cargo fmt --check` — Pass
+- ✅ `cargo clippy` — Pass (with `-A unexpected_cfgs` for Anchor macros)
+- ✅ `cargo test` — Pass
+- ✅ `pnpm -r test` — Pass (integration tests skipped without RUN_ANCHOR_TESTS=1)
+- ⚠️ `pnpm audit --prod` — 1 high severity vulnerability in `bigint-buffer` (upstream dependency of @solana/spl-token, no patched version available)
+- ✅ `docker compose build` — Dry-run passes (full build requires more time)
 
 Artifacts from executed commands are saved under `audit/artifacts/`.
