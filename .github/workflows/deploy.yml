@@ -38,16 +38,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Install Solana CLI
-        run: |
-          set -euo pipefail
-          curl -sSfL "https://release.solana.com/${{ env.SOLANA_VERSION }}/install" -o /tmp/solana-install.sh
-          sh /tmp/solana-install.sh
-          SOLANA_BIN_DIR="$(dirname "$(find "$HOME/.local/share/solana/install" -type f -name solana | head -n1)")"
-          test -n "$SOLANA_BIN_DIR"
-          test -x "$SOLANA_BIN_DIR/solana"
-          echo "$SOLANA_BIN_DIR" >> "$GITHUB_PATH"
-          "$SOLANA_BIN_DIR/solana" --version
+      - name: Setup Solana CLI
+        uses: metadaoproject/setup-solana@v1
+        with:
+          solana-version: 1.17.14
 
       - name: Verify Solana CLI
         run: |
