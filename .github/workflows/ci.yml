@@ -21,7 +21,7 @@ jobs:
       - name: Install Solana CLI
         run: |
           set -euo pipefail
-          curl -sSfL https://release.anza.xyz/v1.17.14/install -o /tmp/solana-install.sh
+          curl -sSfL https://release.anza.xyz/v3.1.9/install -o /tmp/solana-install.sh
           sh /tmp/solana-install.sh
           SOLANA_BIN_DIR="$(dirname "$(find "$HOME/.local/share/solana/install" -type f -name solana | head -n1)")"
           test -n "$SOLANA_BIN_DIR"
