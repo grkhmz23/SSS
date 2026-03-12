@@ -37,10 +37,15 @@ jobs:
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Verify Solana CLI
+        run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
 
       - name: Setup Solana Wallet
         run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           mkdir -p ~/.config/solana
           if [ -n "${{ secrets.DEPLOYER_KEYPAIR }}" ]; then
             echo "${{ secrets.DEPLOYER_KEYPAIR }}" > ~/.config/solana/id.json
@@ -55,6 +60,7 @@ jobs:
 
       - name: Check Wallet Balance
         run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           BALANCE=$(solana balance 2>/dev/null || echo "0")
           echo "Wallet balance: $BALANCE"
           if [ "$BALANCE" = "0" ] || [ -z "$BALANCE" ]; then
@@ -82,6 +88,7 @@ jobs:
       - name: Deploy to ${{ env.CLUSTER }}
         id: deploy
         run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           echo "Deploying to ${{ env.CLUSTER }}..."
           
           # Deploy programs
@@ -94,6 +101,7 @@ jobs:
       - name: Update Program IDs in Code
         if: env.CLUSTER == 'devnet'
         run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           # Get deployed program IDs
           SSS_PID=$(solana address -k target/deploy/sss_stablecoin-keypair.json)
           HOOK_PID=$(solana address -k target/deploy/sss_transfer_hook-keypair.json)
@@ -119,6 +127,7 @@ jobs:
 
       - name: Post Deployment Summary
         run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           echo "=== Deployment Complete ==="
           echo "Network: ${{ env.CLUSTER }}"
           echo "SSS Stablecoin: ${{ env.SSS_STABLECOIN_PID || 'See Anchor.toml' }}"
