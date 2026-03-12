@@ -1,0 +1,8 @@
+[unstable]
+next-lockfile-bump = true
+
+[build]
+target = "sbf-solana-solana"
+
+[env]
+CC = ""
