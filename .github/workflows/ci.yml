@@ -43,7 +43,8 @@ jobs:
 
       - name: Build Programs (SBF)
         run: |
-          sed -i 's/^version = 4$/version = 3/' Cargo.lock
+          rm -f Cargo.lock
+          cargo generate-lockfile
           head -n 3 Cargo.lock
           cargo build-sbf --manifest-path programs/sss-stablecoin/Cargo.toml
           cargo build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml
