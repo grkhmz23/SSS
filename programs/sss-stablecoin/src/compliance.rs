@@ -1,10 +1,6 @@
 //! Compliance validation helpers for SSS-2
 
-use crate::{
-    constants::COMPLIANCE_RECORD_SEED,
-    error::StablecoinError,
-    state::ComplianceRecord,
-};
+use crate::{constants::COMPLIANCE_RECORD_SEED, error::StablecoinError, state::ComplianceRecord};
 use anchor_lang::prelude::*;
 
 /// Validate that a wallet is NOT blacklisted
@@ -33,11 +29,7 @@ pub fn validate_not_blacklisted(
         *wallet,
         StablecoinError::InvalidComplianceRecord
     );
-    require_keys_eq!(
-        parsed.mint,
-        *mint,
-        StablecoinError::InvalidComplianceRecord
-    );
+    require_keys_eq!(parsed.mint, *mint, StablecoinError::InvalidComplianceRecord);
     require!(!parsed.blacklisted, StablecoinError::WalletBlacklisted);
 
     Ok(())
@@ -63,18 +55,14 @@ pub fn validate_blacklisted(
         crate::ID,
         StablecoinError::InvalidComplianceRecord
     );
-    
+
     let parsed = parse_compliance_record(record)?;
     require_keys_eq!(
         parsed.wallet,
         *wallet,
         StablecoinError::InvalidComplianceRecord
     );
-    require_keys_eq!(
-        parsed.mint,
-        *mint,
-        StablecoinError::InvalidComplianceRecord
-    );
+    require_keys_eq!(parsed.mint, *mint, StablecoinError::InvalidComplianceRecord);
     require!(parsed.blacklisted, StablecoinError::WalletNotBlacklisted);
 
     Ok(())

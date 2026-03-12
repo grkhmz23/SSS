@@ -1,9 +1,7 @@
 //! Transfer master authority instruction
 
 use crate::{
-    constants::CONFIG_SEED,
-    error::StablecoinError,
-    events::AuthorityTransferred,
+    constants::CONFIG_SEED, error::StablecoinError, events::AuthorityTransferred,
     state::StablecoinConfig,
 };
 use anchor_lang::prelude::*;
@@ -12,7 +10,7 @@ use anchor_lang::prelude::*;
 pub fn handler(ctx: Context<TransferAuthority>, new_master: Pubkey) -> Result<()> {
     let config = &mut ctx.accounts.config;
     require_master(config, &ctx.accounts.authority.key())?;
-    
+
     let old_master = config.master_authority;
     config.master_authority = new_master;
 

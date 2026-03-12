@@ -17,18 +17,14 @@ use spl_token_2022::{
         metadata_pointer::instruction as metadata_pointer_instruction,
         permanent_delegate::instruction as permanent_delegate_instruction,
         token_metadata::instruction as token_metadata_instruction,
-        transfer_hook::instruction as transfer_hook_instruction,
-        ExtensionType,
+        transfer_hook::instruction as transfer_hook_instruction, ExtensionType,
     },
     instruction as token_2022_instruction,
     state::AccountState,
 };
 
 /// Initialize a new stablecoin with specified configuration
-pub fn handler(
-    ctx: Context<Initialize>,
-    args: InitializeArgs,
-) -> Result<()> {
+pub fn handler(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
     validate_preset(&args)?;
     create_token_2022_mint(&ctx, &args)?;
 
@@ -40,7 +36,10 @@ pub fn handler(
     config.master_authority = ctx.accounts.authority.key();
     config.pauser = args.roles.pauser.unwrap_or(ctx.accounts.authority.key());
     config.burner = args.roles.burner.unwrap_or(ctx.accounts.authority.key());
-    config.blacklister = args.roles.blacklister.unwrap_or(ctx.accounts.authority.key());
+    config.blacklister = args
+        .roles
+        .blacklister
+        .unwrap_or(ctx.accounts.authority.key());
     config.seizer = args.roles.seizer.unwrap_or(ctx.accounts.authority.key());
     config.treasury = args.roles.treasury;
     config.compliance_enabled = args.enable_compliance;
@@ -129,10 +128,9 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
         extensions.push(ExtensionType::DefaultAccountState);
     }
 
-    let mint_len = ExtensionType::try_calculate_account_len::<
-        spl_token_2022::state::Mint,
-    >(&extensions)
-    .map_err(|_| error!(StablecoinError::MintSizingFailed))?;
+    let mint_len =
+        ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&extensions)
+            .map_err(|_| error!(StablecoinError::MintSizingFailed))?;
     let lamports = Rent::get()?.minimum_balance(mint_len);
 
     invoke(

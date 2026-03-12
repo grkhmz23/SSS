@@ -1,9 +1,9 @@
 //! SSS Stablecoin - Solana Stablecoin Standard
-//! 
+//!
 //! Open-source reference implementation of the Solana Stablecoin Standard
 //! with two presets:
 //! - SSS-1: issuer-grade stablecoin with mint/burn/freeze/pause and RBAC
-//! - SSS-2: adds compliance controls (blacklist, seize via Permanent Delegate, 
+//! - SSS-2: adds compliance controls (blacklist, seize via Permanent Delegate,
 //!   transfer-hook enforcement)
 
 use anchor_lang::prelude::*;
@@ -85,10 +85,7 @@ pub mod sss_stablecoin {
     // ============ SSS-2 Compliance Instructions ============
 
     /// Add a wallet to the blacklist (SSS-2 only)
-    pub fn add_to_blacklist(
-        ctx: Context<UpsertComplianceRecord>,
-        reason: String,
-    ) -> Result<()> {
+    pub fn add_to_blacklist(ctx: Context<UpsertComplianceRecord>, reason: String) -> Result<()> {
         instructions::blacklist::add_handler(ctx, reason)
     }
 

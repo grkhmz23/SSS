@@ -20,7 +20,7 @@ pub fn handler(ctx: Context<UpdateMinter>, args: UpdateMinterArgs) -> Result<()>
     role.active = args.active;
     role.quota_amount = args.quota_amount;
     role.window_seconds = args.window_seconds;
-    
+
     if args.reset_window {
         role.window_start_ts = Clock::get()?.unix_timestamp;
         role.minted_in_window = 0;

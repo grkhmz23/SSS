@@ -1,10 +1,7 @@
 //! Update roles instruction
 
 use crate::{
-    constants::CONFIG_SEED,
-    error::StablecoinError,
-    events::RolesUpdated,
-    state::StablecoinConfig,
+    constants::CONFIG_SEED, error::StablecoinError, events::RolesUpdated, state::StablecoinConfig,
 };
 use anchor_lang::prelude::*;
 

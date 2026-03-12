@@ -2,7 +2,9 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{program::invoke_signed, system_instruction};
 use anchor_spl::token_interface::{Mint, TokenAccount};
 use borsh::BorshDeserialize;
-use spl_tlv_account_resolution::{account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList};
+use spl_tlv_account_resolution::{
+    account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList,
+};
 use spl_transfer_hook_interface::{
     get_extra_account_metas_address_and_bump_seed,
     instruction::{ExecuteInstruction, TransferHookInstruction},
@@ -37,7 +39,10 @@ pub mod sss_transfer_hook {
         Ok(())
     }
 
-    pub fn update_hook_config(ctx: Context<UpdateHookConfig>, args: UpdateHookConfigArgs) -> Result<()> {
+    pub fn update_hook_config(
+        ctx: Context<UpdateHookConfig>,
+        args: UpdateHookConfigArgs,
+    ) -> Result<()> {
         require_keys_eq!(
             ctx.accounts.hook_config.stablecoin_config,
             ctx.accounts.stablecoin_config.key(),
@@ -98,10 +103,18 @@ pub mod sss_transfer_hook {
         let extra_metas = vec![
             ExtraAccountMeta::new_with_pubkey(&ctx.accounts.hook_config.key(), false, false)
                 .map_err(anchor_lang::error::Error::from)?,
-            ExtraAccountMeta::new_with_pubkey(&ctx.accounts.hook_config.stablecoin_program, false, false)
-                .map_err(anchor_lang::error::Error::from)?,
-            ExtraAccountMeta::new_with_pubkey(&ctx.accounts.hook_config.stablecoin_config, false, false)
-                .map_err(anchor_lang::error::Error::from)?,
+            ExtraAccountMeta::new_with_pubkey(
+                &ctx.accounts.hook_config.stablecoin_program,
+                false,
+                false,
+            )
+            .map_err(anchor_lang::error::Error::from)?,
+            ExtraAccountMeta::new_with_pubkey(
+                &ctx.accounts.hook_config.stablecoin_config,
+                false,
+                false,
+            )
+            .map_err(anchor_lang::error::Error::from)?,
             ExtraAccountMeta::new_external_pda_with_seeds(
                 6,
                 &[
@@ -179,7 +192,11 @@ pub mod sss_transfer_hook {
     #[interface(spl_transfer_hook_interface::execute)]
     pub fn execute(ctx: Context<Execute>, amount: u64) -> Result<()> {
         let hook_config = &ctx.accounts.hook_config;
-        require_keys_eq!(hook_config.mint, ctx.accounts.mint.key(), HookError::InvalidMint);
+        require_keys_eq!(
+            hook_config.mint,
+            ctx.accounts.mint.key(),
+            HookError::InvalidMint
+        );
         require_keys_eq!(
             hook_config.stablecoin_program,
             ctx.accounts.stablecoin_program.key(),
@@ -232,7 +249,10 @@ pub mod sss_transfer_hook {
         )?;
 
         require!(!source_is_blacklisted, HookError::SourceBlacklisted);
-        require!(!destination_is_blacklisted, HookError::DestinationBlacklisted);
+        require!(
+            !destination_is_blacklisted,
+            HookError::DestinationBlacklisted
+        );
 
         emit!(TransferValidated {
             mint: ctx.accounts.mint.key(),
@@ -250,7 +270,9 @@ pub fn fallback<'info>(
     accounts: &'info [AccountInfo<'info>],
     data: &[u8],
 ) -> Result<()> {
-    match TransferHookInstruction::unpack(data).map_err(|_| error!(HookError::InvalidFallbackData))? {
+    match TransferHookInstruction::unpack(data)
+        .map_err(|_| error!(HookError::InvalidFallbackData))?
+    {
         TransferHookInstruction::Execute { amount } => {
             crate::__private::__global::execute(program_id, accounts, &amount.to_le_bytes())
         }
@@ -269,9 +291,15 @@ fn is_blacklisted(
     mint: &Pubkey,
     stablecoin_program: &Pubkey,
 ) -> Result<bool> {
-    let (expected, _) =
-        Pubkey::find_program_address(&[COMPLIANCE_RECORD_SEED, mint.as_ref(), owner.as_ref()], stablecoin_program);
-    require_keys_eq!(expected, record_info.key(), HookError::InvalidComplianceRecord);
+    let (expected, _) = Pubkey::find_program_address(
+        &[COMPLIANCE_RECORD_SEED, mint.as_ref(), owner.as_ref()],
+        stablecoin_program,
+    );
+    require_keys_eq!(
+        expected,
+        record_info.key(),
+        HookError::InvalidComplianceRecord
+    );
 
     if record_info.owner != stablecoin_program {
         return Ok(false);

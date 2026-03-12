@@ -9,7 +9,7 @@ use crate::{
     state::{MinterRole, StablecoinConfig},
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{mint_to, Mint, MintTo, TokenAccount, Token2022};
+use anchor_spl::token_interface::{mint_to, Mint, MintTo, Token2022, TokenAccount};
 
 /// Mint new tokens to a recipient
 pub fn handler(ctx: Context<MintTokens>, amount: u64) -> Result<()> {

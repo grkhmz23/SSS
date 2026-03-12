@@ -1,16 +1,13 @@
 //! Burn instruction for destroying tokens
 
 use crate::{
-    constants::CONFIG_SEED,
-    error::StablecoinError,
-    events::Burned,
-    state::StablecoinConfig,
+    constants::CONFIG_SEED, error::StablecoinError, events::Burned, state::StablecoinConfig,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{burn, Burn, Mint, TokenAccount, Token2022};
+use anchor_spl::token_interface::{burn, Burn, Mint, Token2022, TokenAccount};
 
 /// Burn tokens from an account
-/// 
+///
 /// If the signer is the token owner, they can burn their own tokens.
 /// If the signer is the burner role, they can burn from any account (requires permanent delegate).
 pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
@@ -38,10 +35,7 @@ pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
         )?;
     } else {
         // Burner role burn (requires permanent delegate)
-        require!(
-            is_burner(config, &signer),
-            StablecoinError::Unauthorized
-        );
+        require!(is_burner(config, &signer), StablecoinError::Unauthorized);
         require!(
             config.permanent_delegate_enabled,
             StablecoinError::PermanentDelegateDisabled

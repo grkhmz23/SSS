@@ -7,7 +7,7 @@ use crate::{
     state::StablecoinConfig,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{freeze_account, thaw_account, Mint, TokenAccount, Token2022};
+use anchor_spl::token_interface::{freeze_account, thaw_account, Mint, Token2022, TokenAccount};
 
 /// Freeze a token account
 pub fn freeze_handler(ctx: Context<FreezeThaw>, target: Pubkey) -> Result<()> {

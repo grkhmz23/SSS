@@ -1,14 +1,13 @@
 //! Seize instruction for compliance enforcement (SSS-2)
 
 use crate::{
-    compliance,
-    constants::CONFIG_SEED,
-    error::StablecoinError,
-    events::Seized,
+    compliance, constants::CONFIG_SEED, error::StablecoinError, events::Seized,
     state::StablecoinConfig,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{transfer_checked, Mint, TokenAccount, Token2022, TransferChecked};
+use anchor_spl::token_interface::{
+    transfer_checked, Mint, Token2022, TokenAccount, TransferChecked,
+};
 
 /// Seize tokens from an account to the treasury
 pub fn handler(ctx: Context<Seize>, args: SeizeArgs) -> Result<()> {

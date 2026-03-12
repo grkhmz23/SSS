@@ -3,7 +3,7 @@
 use anchor_lang::prelude::*;
 
 /// Global configuration for a stablecoin mint
-/// 
+///
 /// PDA derived with: ["config", mint]
 #[account]
 #[derive(InitSpace)]
@@ -28,7 +28,7 @@ pub struct StablecoinConfig {
 }
 
 /// Role configuration for minter authorities
-/// 
+///
 /// PDA derived with: ["minter", config, authority]
 #[account]
 #[derive(InitSpace)]
@@ -44,7 +44,7 @@ pub struct MinterRole {
 }
 
 /// Compliance record for tracking blacklist status
-/// 
+///
 /// PDA derived with: ["compliance", mint, wallet]
 #[account]
 #[derive(InitSpace)]

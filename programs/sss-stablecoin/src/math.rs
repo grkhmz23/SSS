@@ -4,7 +4,7 @@ use crate::error::StablecoinError;
 use anchor_lang::prelude::*;
 
 /// Compute quota update after a mint operation
-/// 
+///
 /// Returns (new_window_start_ts, new_minted_in_window)
 /// Handles window reset when elapsed time exceeds window_seconds
 pub fn compute_quota_update(
@@ -21,11 +21,11 @@ pub fn compute_quota_update(
     let updated = next_minted
         .checked_add(amount)
         .ok_or(StablecoinError::MathOverflow)?;
-    
+
     if updated > quota_amount {
         return Err(StablecoinError::QuotaExceeded.into());
     }
-    
+
     Ok((next_window_start, updated))
 }
 
