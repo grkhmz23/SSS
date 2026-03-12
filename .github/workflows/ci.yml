@@ -43,7 +43,9 @@ jobs:
 
       - name: Build Programs (SBF)
         run: |
-          SOLANA_CARGO="$(find "$HOME/.local/share/solana/install" -type f -path '*/platform-tools/rust/bin/cargo' | head -n1)"
+          SBF_BIN="$(command -v cargo-build-sbf)"
+          test -n "$SBF_BIN"
+          SOLANA_CARGO="$(dirname "$SBF_BIN")/sdk/sbf/dependencies/platform-tools/rust/bin/cargo"
           test -n "$SOLANA_CARGO"
           "$SOLANA_CARGO" --version
           rm -f Cargo.lock
