@@ -20,3 +20,8 @@ thiserror = "2.0.12"
 overflow-checks = true
 lto = "fat"
 codegen-units = 1
+
+# Force downgrade constant_time_eq to avoid edition2024 requirement
+[patch.crates-io]
+constant_time_eq = { version = "0.3.0" }
+blake3 = { version = "1.5.0" }
