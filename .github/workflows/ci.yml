@@ -33,9 +33,9 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Anchor
+      - name: Install AVM and Anchor
         run: |
-          npm install -g @coral-xyz/anchor-cli@0.28.0
+          npm install -g @coral-xyz/anchor-cli@0.29.0
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           anchor --version
 
@@ -43,10 +43,12 @@ jobs:
         run: cargo fmt --check
 
       - name: Anchor build
-        run: anchor build
+        run: |
+          anchor build
 
       - name: Anchor test
-        run: RUN_ANCHOR_TESTS=1 anchor test --skip-build
+        run: |
+          RUN_ANCHOR_TESTS=1 anchor test --skip-build
 
   js-sdk-cli:
     runs-on: ubuntu-latest

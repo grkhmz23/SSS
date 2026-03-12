@@ -17,7 +17,7 @@ on:
 
 env:
   SOLANA_VERSION: 1.18.26
-  ANCHOR_VERSION: 0.28.0
+  ANCHOR_VERSION: 0.29.0
   CLUSTER: ${{ github.event.inputs.cluster || 'devnet' }}
 
 jobs:
@@ -73,14 +73,15 @@ jobs:
             echo "Fund this address on devnet: $(solana address)"
           fi
 
-      - name: Install Anchor
+      - name: Install AVM and Anchor
         run: |
           npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           anchor --version
 
       - name: Anchor Build
-        run: anchor build
+        run: |
+          anchor build
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -94,7 +95,7 @@ jobs:
       - name: Deploy to ${{ env.CLUSTER }}
         id: deploy
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH:$HOME/.cargo/bin"
           echo "Deploying to ${{ env.CLUSTER }}..."
           
           # Deploy programs
@@ -107,7 +108,7 @@ jobs:
       - name: Update Program IDs in Code
         if: env.CLUSTER == 'devnet'
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH:$HOME/.cargo/bin"
           # Get deployed program IDs
           SSS_PID=$(solana address -k target/deploy/sss_stablecoin-keypair.json)
           HOOK_PID=$(solana address -k target/deploy/sss_transfer_hook-keypair.json)
@@ -133,7 +134,7 @@ jobs:
 
       - name: Post Deployment Summary
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH:$HOME/.cargo/bin"
           echo "=== Deployment Complete ==="
           echo "Network: ${{ env.CLUSTER }}"
           echo "SSS Stablecoin: ${{ env.SSS_STABLECOIN_PID || 'See Anchor.toml' }}"
