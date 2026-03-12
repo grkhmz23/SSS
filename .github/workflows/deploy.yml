@@ -40,17 +40,21 @@ jobs:
 
       - name: Install Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          set -euo pipefail
+          curl -sSfL "https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          SOLANA_BIN_DIR="$(dirname "$(find "$HOME/.local/share/solana/install" -type f -name solana | head -n1)")"
+          test -n "$SOLANA_BIN_DIR"
+          test -x "$SOLANA_BIN_DIR/solana"
+          echo "$SOLANA_BIN_DIR" >> "$GITHUB_PATH"
+          "$SOLANA_BIN_DIR/solana" --version
 
       - name: Verify Solana CLI
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
 
       - name: Setup Solana Wallet
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           mkdir -p ~/.config/solana
           if [ -n "${{ secrets.DEPLOYER_KEYPAIR }}" ]; then
             echo "${{ secrets.DEPLOYER_KEYPAIR }}" > ~/.config/solana/id.json
@@ -65,7 +69,6 @@ jobs:
 
       - name: Check Wallet Balance
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           BALANCE=$(solana balance 2>/dev/null || echo "0")
           echo "Wallet balance: $BALANCE"
           if [ "$BALANCE" = "0" ] || [ -z "$BALANCE" ]; then
@@ -76,18 +79,15 @@ jobs:
       - name: Install Anchor CLI
         run: |
           npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           anchor --version
 
       - name: Verify SBF Build Tool
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           cargo-build-sbf --version
           rustup component add rustfmt
 
       - name: Build Programs (SBF)
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           # Build using cargo-build-sbf which uses the correct toolchain
           cargo build-sbf --manifest-path programs/sss-stablecoin/Cargo.toml
           cargo build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml
@@ -98,7 +98,6 @@ jobs:
 
       - name: Generate IDL
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           # Generate IDL using anchor
           anchor idl build --program-name sss_stablecoin --out-file target/idl/sss_stablecoin.json || true
           anchor idl build --program-name sss_transfer_hook --out-file target/idl/sss_transfer_hook.json || true
@@ -114,7 +113,6 @@ jobs:
       - name: Deploy to ${{ env.CLUSTER }}
         id: deploy
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           echo "Deploying to ${{ env.CLUSTER }}..."
           
           # Deploy programs using solana CLI directly
@@ -127,8 +125,6 @@ jobs:
       - name: Extract and Update Program IDs
         if: env.CLUSTER == 'devnet'
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          
           # Get deployed program IDs from keypair files
           SSS_PID=$(solana address -k target/deploy/sss_stablecoin-keypair.json 2>/dev/null || echo "")
           HOOK_PID=$(solana address -k target/deploy/sss_transfer_hook-keypair.json 2>/dev/null || echo "")
@@ -158,7 +154,6 @@ jobs:
 
       - name: Post Deployment Summary
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           echo "=== Deployment Complete ==="
           echo "Network: ${{ env.CLUSTER }}"
           echo "SSS Stablecoin: ${{ env.SSS_STABLECOIN_PID || 'See Anchor.toml' }}"

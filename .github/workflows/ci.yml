@@ -20,12 +20,17 @@ jobs:
 
       - name: Install Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/v1.17.34/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          set -euo pipefail
+          curl -sSfL https://release.anza.xyz/v1.17.14/install -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          SOLANA_BIN_DIR="$(dirname "$(find "$HOME/.local/share/solana/install" -type f -name solana | head -n1)")"
+          test -n "$SOLANA_BIN_DIR"
+          test -x "$SOLANA_BIN_DIR/solana"
+          echo "$SOLANA_BIN_DIR" >> "$GITHUB_PATH"
+          "$SOLANA_BIN_DIR/solana" --version
 
       - name: Verify Solana CLI
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
 
       - name: Setup Node
@@ -36,7 +41,6 @@ jobs:
       - name: Install Anchor CLI
         run: |
           npm install -g @coral-xyz/anchor-cli@0.29.0
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           anchor --version
 
       - name: Rust fmt
@@ -44,13 +48,11 @@ jobs:
 
       - name: Build Programs (SBF)
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           cargo build-sbf --manifest-path programs/sss-stablecoin/Cargo.toml
           cargo build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml
 
       - name: Anchor test
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           # Skip build since we already built with cargo build-sbf
           RUN_ANCHOR_TESTS=1 anchor test --skip-build || true
 
