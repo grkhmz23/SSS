@@ -10,8 +10,11 @@ sss_transfer_hook = "BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "pnpm tsx tests/run-anchor-tests.ts"
+
+[toolchain]
+anchor_version = "0.30.1"

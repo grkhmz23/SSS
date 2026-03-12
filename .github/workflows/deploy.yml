@@ -1,0 +1,128 @@
+name: Deploy to Devnet
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster:
+        description: 'Cluster to deploy to'
+        required: true
+        default: 'devnet'
+        type: choice
+        options:
+          - devnet
+          - mainnet
+  push:
+    branches:
+      - deploy-devnet
+
+env:
+  SOLANA_VERSION: 1.18.26
+  ANCHOR_VERSION: 0.30.1
+  CLUSTER: ${{ github.event.inputs.cluster || 'devnet' }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          solana --version
+
+      - name: Setup Solana Wallet
+        run: |
+          mkdir -p ~/.config/solana
+          if [ -n "${{ secrets.DEPLOYER_KEYPAIR }}" ]; then
+            echo "${{ secrets.DEPLOYER_KEYPAIR }}" > ~/.config/solana/id.json
+          else
+            # Create a new wallet if no secret provided (will need funding)
+            solana-keygen new --no-passphrase --force -o ~/.config/solana/id.json
+            echo "Warning: Using new wallet. Fund this address on devnet:"
+            solana address
+          fi
+          solana config set --url ${{ env.CLUSTER }}
+          solana config get
+
+      - name: Check Wallet Balance
+        run: |
+          BALANCE=$(solana balance 2>/dev/null || echo "0")
+          echo "Wallet balance: $BALANCE"
+          if [ "$BALANCE" = "0" ] || [ -z "$BALANCE" ]; then
+            echo "Warning: Wallet has 0 balance. Deployment may fail."
+            echo "Fund this address on devnet: $(solana address)"
+          fi
+
+      - name: Install Anchor
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
+          anchor --version
+
+      - name: Anchor Build
+        run: anchor build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            target/deploy/*.so
+            target/idl/*.json
+            target/types/*.ts
+
+      - name: Deploy to ${{ env.CLUSTER }}
+        id: deploy
+        run: |
+          echo "Deploying to ${{ env.CLUSTER }}..."
+          
+          # Deploy programs
+          anchor deploy --provider.cluster ${{ env.CLUSTER }} 2>&1 | tee deploy.log
+          
+          # Extract program IDs from deploy output
+          echo "=== Deployment Summary ==="
+          grep -E "Program Id|Success" deploy.log || true
+
+      - name: Update Program IDs in Code
+        if: env.CLUSTER == 'devnet'
+        run: |
+          # Get deployed program IDs
+          SSS_PID=$(solana address -k target/deploy/sss_stablecoin-keypair.json)
+          HOOK_PID=$(solana address -k target/deploy/sss_transfer_hook-keypair.json)
+          
+          echo "SSS Stablecoin Program: $SSS_PID"
+          echo "Transfer Hook Program: $HOOK_PID"
+          
+          # Update Anchor.toml with deployed addresses
+          sed -i "s/sss_stablecoin = \"[^\"]*\"/sss_stablecoin = \"$SSS_PID\"/" Anchor.toml
+          sed -i "s/sss_transfer_hook = \"[^\"]*\"/sss_transfer_hook = \"$HOOK_PID\"/" Anchor.toml
+          
+          echo "SSS_STABLECOIN_PID=$SSS_PID" >> $GITHUB_ENV
+          echo "SSS_TRANSFER_HOOK_PID=$HOOK_PID" >> $GITHUB_ENV
+
+      - name: Commit Updated Program IDs
+        if: env.CLUSTER == 'devnet'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Anchor.toml
+          git diff --cached --quiet || git commit -m "Update program IDs from devnet deployment [skip ci]"
+          git push
+
+      - name: Post Deployment Summary
+        run: |
+          echo "=== Deployment Complete ==="
+          echo "Network: ${{ env.CLUSTER }}"
+          echo "SSS Stablecoin: ${{ env.SSS_STABLECOIN_PID || 'See Anchor.toml' }}"
+          echo "Transfer Hook: ${{ env.SSS_TRANSFER_HOOK_PID || 'See Anchor.toml' }}"
+          echo ""
+          echo "To verify:"
+          echo "  solana program show ${{ env.SSS_STABLECOIN_PID }} --url ${{ env.CLUSTER }}"

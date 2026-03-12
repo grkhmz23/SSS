@@ -20,14 +20,13 @@ jobs:
 
       - name: Install Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          sh -c "$(curl -sSfL https://release.anza.xyz/v1.18.26/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          solana --version
 
-      - name: Install Anchor Version Manager
+      - name: Install Anchor
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-          avm install 0.30.1
-          avm use 0.30.1
+          cargo install --git https://github.com/coral-xyz/anchor --tag v0.30.1 anchor-cli --locked
           anchor --version
 
       - name: Rust fmt
