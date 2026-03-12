@@ -39,7 +39,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Setup Anchor and Solana CLI
-        uses: metaDAOproject/setup-anchor@master
+        uses: metadaoproject/setup-anchor@main
         with:
           anchor-version: 0.29.0
           solana-cli-version: 1.17.14
