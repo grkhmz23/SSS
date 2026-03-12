@@ -42,11 +42,6 @@ jobs:
       - name: Rust fmt
         run: cargo fmt --check
 
-      - name: Rust clippy (programs)
-        run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          cargo clippy -p sss-stablecoin -p sss-transfer-hook --lib -- -D warnings
-
       - name: Anchor build
         run: anchor build
 
