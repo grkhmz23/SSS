@@ -43,8 +43,11 @@ jobs:
 
       - name: Build Programs (SBF)
         run: |
+          SOLANA_CARGO="$(find "$HOME/.local/share/solana/install" -type f -path '*/platform-tools/rust/bin/cargo' | head -n1)"
+          test -n "$SOLANA_CARGO"
+          "$SOLANA_CARGO" --version
           rm -f Cargo.lock
-          cargo generate-lockfile
+          "$SOLANA_CARGO" generate-lockfile
           head -n 3 Cargo.lock
           cargo build-sbf --manifest-path programs/sss-stablecoin/Cargo.toml
           cargo build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml
