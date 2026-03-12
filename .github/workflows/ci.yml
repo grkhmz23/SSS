@@ -19,7 +19,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Setup Anchor and Solana CLI
-        uses: metadaoproject/setup-anchor@v0.0.9
+        uses: metaDAOproject/setup-anchor@master
         with:
           anchor-version: 0.29.0
           solana-cli-version: 1.17.14
