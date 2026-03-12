@@ -83,6 +83,8 @@ jobs:
 
       - name: Build Programs (SBF)
         run: |
+          sed -i 's/^version = 4$/version = 3/' Cargo.lock
+          head -n 3 Cargo.lock
           # Build using cargo-build-sbf which uses the correct toolchain
           cargo build-sbf --manifest-path programs/sss-stablecoin/Cargo.toml
           cargo build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml
