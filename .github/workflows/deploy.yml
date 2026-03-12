@@ -73,15 +73,36 @@ jobs:
             echo "Fund this address on devnet: $(solana address)"
           fi
 
-      - name: Install AVM and Anchor
+      - name: Install Anchor CLI
         run: |
           npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           anchor --version
 
-      - name: Anchor Build
+      - name: Install Solana Platform Tools
         run: |
-          anchor build
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          # Install/update platform tools for SBF compilation
+          cargo install cargo-build-sbf
+          rustup component add rustfmt
+
+      - name: Build Programs (SBF)
+        run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          # Build using cargo-build-sbf which uses the correct toolchain
+          cargo build-sbf --manifest-path programs/sss-stablecoin/Cargo.toml
+          cargo build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml
+          
+          # Copy artifacts to expected location
+          mkdir -p target/deploy
+          cp target/sbf-solana-solana/release/*.so target/deploy/ || true
+
+      - name: Generate IDL
+        run: |
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          # Generate IDL using anchor
+          anchor idl build --program-name sss_stablecoin --out-file target/idl/sss_stablecoin.json || true
+          anchor idl build --program-name sss_transfer_hook --out-file target/idl/sss_transfer_hook.json || true
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -90,35 +111,39 @@ jobs:
           path: |
             target/deploy/*.so
             target/idl/*.json
-            target/types/*.ts
 
       - name: Deploy to ${{ env.CLUSTER }}
         id: deploy
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH:$HOME/.cargo/bin"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           echo "Deploying to ${{ env.CLUSTER }}..."
           
-          # Deploy programs
-          anchor deploy --provider.cluster ${{ env.CLUSTER }} 2>&1 | tee deploy.log
+          # Deploy programs using solana CLI directly
+          echo "Deploying sss_stablecoin..."
+          solana program deploy target/deploy/sss_stablecoin.so --url ${{ env.CLUSTER }} --keypair ~/.config/solana/id.json 2>&1 | tee deploy1.log
           
-          # Extract program IDs from deploy output
-          echo "=== Deployment Summary ==="
-          grep -E "Program Id|Success" deploy.log || true
+          echo "Deploying sss_transfer_hook..."
+          solana program deploy target/deploy/sss_transfer_hook.so --url ${{ env.CLUSTER }} --keypair ~/.config/solana/id.json 2>&1 | tee deploy2.log
 
-      - name: Update Program IDs in Code
+      - name: Extract and Update Program IDs
         if: env.CLUSTER == 'devnet'
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH:$HOME/.cargo/bin"
-          # Get deployed program IDs
-          SSS_PID=$(solana address -k target/deploy/sss_stablecoin-keypair.json)
-          HOOK_PID=$(solana address -k target/deploy/sss_transfer_hook-keypair.json)
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          
+          # Get deployed program IDs from keypair files
+          SSS_PID=$(solana address -k target/deploy/sss_stablecoin-keypair.json 2>/dev/null || echo "")
+          HOOK_PID=$(solana address -k target/deploy/sss_transfer_hook-keypair.json 2>/dev/null || echo "")
           
           echo "SSS Stablecoin Program: $SSS_PID"
           echo "Transfer Hook Program: $HOOK_PID"
           
           # Update Anchor.toml with deployed addresses
-          sed -i "s/sss_stablecoin = \"[^\"]*\"/sss_stablecoin = \"$SSS_PID\"/" Anchor.toml
-          sed -i "s/sss_transfer_hook = \"[^\"]*\"/sss_transfer_hook = \"$HOOK_PID\"/" Anchor.toml
+          if [ -n "$SSS_PID" ]; then
+            sed -i "s/sss_stablecoin = \"[^\"]*\"/sss_stablecoin = \"$SSS_PID\"/" Anchor.toml
+          fi
+          if [ -n "$HOOK_PID" ]; then
+            sed -i "s/sss_transfer_hook = \"[^\"]*\"/sss_transfer_hook = \"$HOOK_PID\"/" Anchor.toml
+          fi
           
           echo "SSS_STABLECOIN_PID=$SSS_PID" >> $GITHUB_ENV
           echo "SSS_TRANSFER_HOOK_PID=$HOOK_PID" >> $GITHUB_ENV
@@ -134,7 +159,7 @@ jobs:
 
       - name: Post Deployment Summary
         run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH:$HOME/.cargo/bin"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           echo "=== Deployment Complete ==="
           echo "Network: ${{ env.CLUSTER }}"
           echo "SSS Stablecoin: ${{ env.SSS_STABLECOIN_PID || 'See Anchor.toml' }}"
