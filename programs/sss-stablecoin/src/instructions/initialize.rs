@@ -15,13 +15,12 @@ use spl_token_2022::{
     extension::{
         default_account_state::instruction as default_account_state_instruction,
         metadata_pointer::instruction as metadata_pointer_instruction,
-        permanent_delegate::instruction as permanent_delegate_instruction,
-        token_metadata::instruction as token_metadata_instruction,
         transfer_hook::instruction as transfer_hook_instruction, ExtensionType,
     },
     instruction as token_2022_instruction,
     state::AccountState,
 };
+use spl_token_metadata_interface::instruction as token_metadata_instruction;
 
 /// Initialize a new stablecoin with specified configuration
 pub fn handler(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
@@ -160,10 +159,10 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
 
     if args.enable_permanent_delegate {
         invoke(
-            &permanent_delegate_instruction::initialize(
+            &token_2022_instruction::initialize_permanent_delegate(
                 &ctx.accounts.token_program.key(),
                 &mint_key,
-                Some(config_key),
+                &config_key,
             )?,
             &[ctx.accounts.mint.to_account_info()],
         )?;
@@ -214,7 +213,12 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
             args.symbol.clone(),
             args.uri.clone(),
         ),
-        &[ctx.accounts.mint.to_account_info()],
+        &[
+            ctx.accounts.mint.to_account_info(),
+            ctx.accounts.config.to_account_info(),
+            ctx.accounts.mint.to_account_info(),
+            ctx.accounts.authority.to_account_info(),
+        ],
     )?;
 
     Ok(())
