@@ -18,10 +18,12 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Setup Solana CLI
-        uses: metadaoproject/setup-solana@v1
+      - name: Setup Anchor and Solana CLI
+        uses: metadaoproject/setup-anchor@v0.0.9
         with:
-          solana-version: 1.17.14
+          anchor-version: 0.29.0
+          solana-cli-version: 1.17.14
+          node-version: 20
 
       - name: Verify Solana CLI
         run: |
@@ -32,9 +34,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Anchor CLI
+      - name: Verify Anchor CLI
         run: |
-          npm install -g @coral-xyz/anchor-cli@0.29.0
           anchor --version
 
       - name: Rust fmt

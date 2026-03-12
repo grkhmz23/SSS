@@ -38,10 +38,12 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Setup Solana CLI
-        uses: metadaoproject/setup-solana@v1
+      - name: Setup Anchor and Solana CLI
+        uses: metadaoproject/setup-anchor@v0.0.9
         with:
-          solana-version: 1.17.14
+          anchor-version: 0.29.0
+          solana-cli-version: 1.17.14
+          node-version: 20
 
       - name: Verify Solana CLI
         run: |
@@ -70,9 +72,8 @@ jobs:
             echo "Fund this address on devnet: $(solana address)"
           fi
 
-      - name: Install Anchor CLI
+      - name: Verify Anchor CLI
         run: |
-          npm install -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
           anchor --version
 
       - name: Verify SBF Build Tool
