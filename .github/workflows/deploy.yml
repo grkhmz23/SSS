@@ -16,7 +16,7 @@ on:
       - deploy-devnet
 
 env:
-  SOLANA_VERSION: 1.18.26
+  SOLANA_VERSION: 1.17.14
   ANCHOR_VERSION: 0.29.0
   CLUSTER: ${{ github.event.inputs.cluster || 'devnet' }}
 
@@ -79,11 +79,10 @@ jobs:
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           anchor --version
 
-      - name: Install Solana Platform Tools
+      - name: Verify SBF Build Tool
         run: |
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          # Install/update platform tools for SBF compilation
-          cargo install cargo-build-sbf
+          cargo-build-sbf --version
           rustup component add rustfmt
 
       - name: Build Programs (SBF)
