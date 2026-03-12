@@ -17,4 +17,4 @@ wallet = "~/.config/solana/id.json"
 test = "pnpm tsx tests/run-anchor-tests.ts"
 
 [toolchain]
-anchor_version = "0.30.1"
+anchor_version = "0.28.0"
