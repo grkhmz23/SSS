@@ -60,6 +60,11 @@ jobs:
           cargo-build-sbf --version
           anchor --version
 
+      - name: Setup local test wallet
+        run: |
+          mkdir -p ~/.config/solana
+          solana-keygen new --no-bip39-passphrase --silent --force -o ~/.config/solana/id.json
+
       - name: Rust fmt
         run: cargo fmt --check
 
