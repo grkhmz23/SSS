@@ -28,6 +28,19 @@ pub use instructions::transfer_authority;
 pub use instructions::update_minter;
 pub use instructions::update_roles;
 pub use instructions::*;
+pub use instructions::blacklist::__client_accounts_add_to_blacklist;
+pub use instructions::blacklist::__client_accounts_remove_from_blacklist;
+pub use instructions::burn::__client_accounts_burn;
+pub use instructions::freeze_thaw::__client_accounts_freeze_account;
+pub use instructions::freeze_thaw::__client_accounts_thaw_account;
+pub use instructions::initialize::__client_accounts_initialize;
+pub use instructions::mint::__client_accounts_mint;
+pub use instructions::pause::__client_accounts_pause;
+pub use instructions::pause::__client_accounts_unpause;
+pub use instructions::seize::__client_accounts_seize;
+pub use instructions::transfer_authority::__client_accounts_transfer_authority;
+pub use instructions::update_minter::__client_accounts_update_minter;
+pub use instructions::update_roles::__client_accounts_update_roles;
 
 declare_id!("Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb");
 
