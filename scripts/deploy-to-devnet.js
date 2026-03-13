@@ -113,7 +113,7 @@ async function main() {
     },
     instructions: [
       '1. Install Anchor CLI: cargo install --git https://github.com/coral-xyz/anchor avm',
-      '2. Install version: avm install 0.30.1 && avm use 0.30.1',
+      '2. Install version: cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --force',
       '3. Build: anchor build',
       '4. Deploy: anchor deploy --provider.cluster devnet',
     ],

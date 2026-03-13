@@ -22,8 +22,8 @@
 
 ### Tools
 
-- Solana CLI v1.18.0+
-- Anchor CLI v0.30.1
+- Solana CLI v1.18.25
+- Anchor CLI v0.32.1
 - Node.js v22+
 - pnpm v10+
 

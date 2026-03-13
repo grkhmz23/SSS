@@ -16,8 +16,9 @@ on:
       - deploy-devnet
 
 env:
-  SOLANA_VERSION: v1.17.14
-  ANCHOR_VERSION: 0.29.0
+  RUST_VERSION: 1.79.0
+  SOLANA_VERSION: 1.18.25
+  ANCHOR_VERSION: 0.32.1
   CLUSTER: ${{ github.event.inputs.cluster || 'devnet' }}
 
 jobs:
@@ -29,6 +30,8 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -38,16 +41,15 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Setup Anchor and Solana CLI
-        uses: metadaoproject/setup-anchor@main
-        with:
-          anchor-version: 0.29.0
-          solana-cli-version: 1.17.14
-          node-version: 20
-
-      - name: Verify Solana CLI
+      - name: Install Solana CLI
         run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
           solana --version
+
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --force
 
       - name: Setup Solana Wallet
         run: |
@@ -74,6 +76,8 @@ jobs:
 
       - name: Verify Anchor CLI
         run: |
+          rustc --version
+          cargo --version
           anchor --version
 
       - name: Verify SBF Build Tool
@@ -81,29 +85,9 @@ jobs:
           cargo-build-sbf --version
           rustup component add rustfmt
 
-      - name: Build Programs (SBF)
+      - name: Anchor build
         run: |
-          SBF_BIN="$(command -v cargo-build-sbf)"
-          test -n "$SBF_BIN"
-          SOLANA_CARGO="$(dirname "$SBF_BIN")/sdk/sbf/dependencies/platform-tools/rust/bin/cargo"
-          test -n "$SOLANA_CARGO"
-          "$SOLANA_CARGO" --version
-          rm -f Cargo.lock
-          "$SOLANA_CARGO" generate-lockfile
-          head -n 3 Cargo.lock
-          # Build using cargo-build-sbf which uses the correct toolchain
-          cargo build-sbf --manifest-path programs/sss-stablecoin/Cargo.toml
-          cargo build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml
-          
-          # Copy artifacts to expected location
-          mkdir -p target/deploy
-          cp target/sbf-solana-solana/release/*.so target/deploy/ || true
-
-      - name: Generate IDL
-        run: |
-          # Generate IDL using anchor
-          anchor idl build --program-name sss_stablecoin --out-file target/idl/sss_stablecoin.json || true
-          anchor idl build --program-name sss_transfer_hook --out-file target/idl/sss_transfer_hook.json || true
+          anchor build
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -117,13 +101,8 @@ jobs:
         id: deploy
         run: |
           echo "Deploying to ${{ env.CLUSTER }}..."
-          
-          # Deploy programs using solana CLI directly
-          echo "Deploying sss_stablecoin..."
-          solana program deploy target/deploy/sss_stablecoin.so --url ${{ env.CLUSTER }} --keypair ~/.config/solana/id.json 2>&1 | tee deploy1.log
-          
-          echo "Deploying sss_transfer_hook..."
-          solana program deploy target/deploy/sss_transfer_hook.so --url ${{ env.CLUSTER }} --keypair ~/.config/solana/id.json 2>&1 | tee deploy2.log
+
+          anchor deploy --provider.cluster ${{ env.CLUSTER }}
 
       - name: Extract and Update Program IDs
         if: env.CLUSTER == 'devnet'
@@ -131,18 +110,36 @@ jobs:
           # Get deployed program IDs from keypair files
           SSS_PID=$(solana address -k target/deploy/sss_stablecoin-keypair.json 2>/dev/null || echo "")
           HOOK_PID=$(solana address -k target/deploy/sss_transfer_hook-keypair.json 2>/dev/null || echo "")
-          
+
           echo "SSS Stablecoin Program: $SSS_PID"
           echo "Transfer Hook Program: $HOOK_PID"
-          
-          # Update Anchor.toml with deployed addresses
-          if [ -n "$SSS_PID" ]; then
-            sed -i "s/sss_stablecoin = \"[^\"]*\"/sss_stablecoin = \"$SSS_PID\"/" Anchor.toml
-          fi
-          if [ -n "$HOOK_PID" ]; then
-            sed -i "s/sss_transfer_hook = \"[^\"]*\"/sss_transfer_hook = \"$HOOK_PID\"/" Anchor.toml
-          fi
-          
+
+          export SSS_PID
+          export HOOK_PID
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          path = Path("Anchor.toml")
+          text = path.read_text()
+          lines = text.splitlines()
+          in_devnet = False
+          for index, line in enumerate(lines):
+              stripped = line.strip()
+              if stripped == "[programs.devnet]":
+                  in_devnet = True
+                  continue
+              if in_devnet and stripped.startswith("[") and stripped.endswith("]"):
+                  in_devnet = False
+              if not in_devnet:
+                  continue
+              if stripped.startswith("sss_stablecoin = ") and os.environ.get("SSS_PID"):
+                  lines[index] = f'sss_stablecoin = "{os.environ["SSS_PID"]}"'
+              if stripped.startswith("sss_transfer_hook = ") and os.environ.get("HOOK_PID"):
+                  lines[index] = f'sss_transfer_hook = "{os.environ["HOOK_PID"]}"'
+          path.write_text("\n".join(lines) + "\n")
+          PY
+
           echo "SSS_STABLECOIN_PID=$SSS_PID" >> $GITHUB_ENV
           echo "SSS_TRANSFER_HOOK_PID=$HOOK_PID" >> $GITHUB_ENV
 

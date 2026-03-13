@@ -10,7 +10,7 @@
 | **Keypair File** | `/workspaces/SSS/deploy-keypair.json` |
 
 ### Environment Prepared
-- ✅ Solana CLI v3.1.10 installed
+- ✅ Solana CLI installed
 - ✅ Wallet configured for Devnet
 - ✅ 10 SOL balance confirmed
 
@@ -35,11 +35,10 @@ source $HOME/.cargo/env
 # Install Solana CLI
 sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
 export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+solana-install init 1.18.25
 
 # Install Anchor CLI
-cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-avm install 0.30.1
-avm use 0.30.1
+cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --force
 ```
 
 #### Step 3: Copy Deployment Keypair
@@ -96,12 +95,12 @@ jobs:
       - name: Setup Solana
         uses: metadaoproject/setup-solana@v1
         with:
-          solana-version: 1.18.26
+          solana-version: 1.18.25
           
       - name: Setup Anchor
         uses: metadaoproject/setup-anchor@v2
         with:
-          anchor-version: 0.30.1
+          anchor-version: 0.32.1
           
       - name: Configure Keypair
         run: |
@@ -134,9 +133,7 @@ fi
 
 if ! command -v anchor &> /dev/null; then
     echo "Installing Anchor CLI..."
-    cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-    avm install 0.30.1
-    avm use 0.30.1
+    cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --force
 fi
 
 # Setup
@@ -255,12 +252,13 @@ Your 10 SOL balance is sufficient.
 - Check: `ls -lh target/deploy/*.so`
 
 ### "BPF compilation failed"
-- Install platform tools: `solana-install init 1.18.26`
+- Install platform tools: `solana-install init 1.18.25`
 - Or use: `cargo build-sbf`
 
 ### "Anchor version mismatch"
 - Check: `anchor --version`
-- Install correct version: `avm install 0.30.1 && avm use 0.30.1`
+- Install correct version: `cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --force`
+- Install correct version: `cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --force`
 
 ---
 

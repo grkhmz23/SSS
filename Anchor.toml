@@ -6,16 +6,20 @@ skip-lint = false
 sss_stablecoin = "Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb"
 sss_transfer_hook = "BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo"
 
+[programs.devnet]
+sss_stablecoin = "Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb"
+sss_transfer_hook = "BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "pnpm tsx tests/run-anchor-tests.ts"
 
 [toolchain]
-anchor_version = "0.29.0"
-solana_version = "1.17.14"
+anchor_version = "0.32.1"
+solana_version = "1.18.25"

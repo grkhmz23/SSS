@@ -15,7 +15,7 @@ check_bin() {
 check_bin rustc "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
 check_bin cargo "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
 check_bin solana "sh -c \"\$(curl -sSfL https://release.anza.xyz/stable/install)\""
-check_bin anchor "cargo install --git https://github.com/coral-xyz/anchor avm --locked --force && avm install 0.30.1 && avm use 0.30.1"
+check_bin anchor "cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --force"
 check_bin node "brew install node"
 check_bin pnpm "npm install -g pnpm@10"
 check_bin docker "brew install --cask docker"

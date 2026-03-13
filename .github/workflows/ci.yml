@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  RUST_VERSION: 1.79.0
+  SOLANA_VERSION: 1.18.25
+  ANCHOR_VERSION: 0.32.1
+
 jobs:
   rust-anchor:
     runs-on: ubuntu-latest
@@ -16,48 +21,53 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy
-
-      - name: Setup Anchor and Solana CLI
-        uses: metadaoproject/setup-anchor@main
-        with:
-          anchor-version: 0.29.0
-          solana-cli-version: 1.17.14
-          node-version: 20
-
-      - name: Verify Solana CLI
-        run: |
-          solana --version
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Verify Anchor CLI
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install JS deps
+        run: pnpm install
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Solana CLI
         run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --force
+
+      - name: Verify toolchain
+        run: |
+          rustc --version
+          cargo --version
+          solana --version
+          cargo-build-sbf --version
           anchor --version
 
       - name: Rust fmt
         run: cargo fmt --check
 
-      - name: Build Programs (SBF)
+      - name: Rust clippy
+        run: cargo clippy -p sss-stablecoin -p sss-transfer-hook --all-targets -- -D warnings
+
+      - name: Anchor build
         run: |
-          SBF_BIN="$(command -v cargo-build-sbf)"
-          test -n "$SBF_BIN"
-          SOLANA_CARGO="$(dirname "$SBF_BIN")/sdk/sbf/dependencies/platform-tools/rust/bin/cargo"
-          test -n "$SOLANA_CARGO"
-          "$SOLANA_CARGO" --version
-          rm -f Cargo.lock
-          "$SOLANA_CARGO" generate-lockfile
-          head -n 3 Cargo.lock
-          cargo build-sbf --manifest-path programs/sss-stablecoin/Cargo.toml
-          cargo build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml
+          anchor build
 
       - name: Anchor test
         run: |
-          # Skip build since we already built with cargo build-sbf
-          RUN_ANCHOR_TESTS=1 anchor test --skip-build || true
+          RUN_ANCHOR_TESTS=1 anchor test --skip-build
 
   js-sdk-cli:
     runs-on: ubuntu-latest

@@ -6,16 +6,16 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-anchor-lang = { version = "0.29.0", features = ["init-if-needed"] }
-anchor-spl = { version = "0.29.0", default-features = false, features = ["token", "token_2022"] }
-borsh = "=0.10.4"
-solana-program = "=1.17.14"
-spl-memo = { version = "=4.0.0", features = ["no-entrypoint"] }
-spl-token = { version = "=4.0.0", features = ["no-entrypoint"] }
-spl-token-2022 = { version = "=0.9.0", features = ["no-entrypoint"] }
-spl-token-metadata-interface = "=0.2.0"
-spl-tlv-account-resolution = "=0.4.0"
-spl-transfer-hook-interface = "=0.3.0"
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.32.1", default-features = false, features = ["token", "token_2022"] }
+borsh = "=0.10.3"
+solana-program = "~1.18.25"
+spl-memo = { version = "6", features = ["no-entrypoint"] }
+spl-token = { version = "8", features = ["no-entrypoint"] }
+spl-token-2022 = { version = "8", features = ["no-entrypoint"] }
+spl-token-metadata-interface = "0.7"
+spl-tlv-account-resolution = "0.10"
+spl-transfer-hook-interface = "0.10"
 thiserror = "1.0"
 
 [profile.release]
