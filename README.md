@@ -80,7 +80,7 @@ source "$HOME/.cargo/env"
 # Solana CLI (Anza)
 sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
 export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-solana-install init 1.18.25
+solana-install init 2.2.1
 
 # Anchor CLI
 cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --force
