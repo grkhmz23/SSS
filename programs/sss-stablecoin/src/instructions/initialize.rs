@@ -14,6 +14,7 @@ use anchor_lang::{
     },
 };
 use anchor_spl::token_2022::Token2022;
+use spl_pod::optional_keys::OptionalNonZeroPubkey;
 use spl_token_2022::{
     extension::{
         default_account_state::instruction as default_account_state_instruction,
@@ -23,7 +24,10 @@ use spl_token_2022::{
     instruction as token_2022_instruction,
     state::AccountState,
 };
-use spl_token_metadata_interface::instruction as token_metadata_instruction;
+use spl_token_metadata_interface::{
+    instruction as token_metadata_instruction, state::TokenMetadata,
+};
+use std::convert::TryFrom;
 
 /// Initialize a new stablecoin with specified configuration
 pub fn handler(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
@@ -134,14 +138,29 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
     let mint_len =
         ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&extensions)
             .map_err(|_| error!(StablecoinError::MintSizingFailed))?;
-    let lamports = Rent::get()?.minimum_balance(mint_len);
+    let metadata = TokenMetadata {
+        update_authority: OptionalNonZeroPubkey::try_from(Some(config_key))
+            .map_err(|_| error!(StablecoinError::MintSizingFailed))?,
+        mint: mint_key,
+        name: args.name.clone(),
+        symbol: args.symbol.clone(),
+        uri: args.uri.clone(),
+        additional_metadata: vec![],
+    };
+    let metadata_len = metadata
+        .tlv_size_of()
+        .map_err(|_| error!(StablecoinError::MintSizingFailed))?;
+    let total_mint_len = mint_len
+        .checked_add(metadata_len)
+        .ok_or_else(|| error!(StablecoinError::MintSizingFailed))?;
+    let lamports = Rent::get()?.minimum_balance(total_mint_len);
 
     invoke(
         &system_instruction::create_account(
             &ctx.accounts.payer.key(),
             &mint_key,
             lamports,
-            mint_len as u64,
+            total_mint_len as u64,
             &ctx.accounts.token_program.key(),
         ),
         &[
