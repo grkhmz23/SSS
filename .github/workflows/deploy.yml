@@ -16,7 +16,7 @@ on:
       - deploy-devnet
 
 env:
-  RUST_VERSION: 1.79.0
+  RUST_VERSION: 1.85.0
   SOLANA_VERSION: 1.18.25
   ANCHOR_VERSION: 0.32.1
   CLUSTER: ${{ github.event.inputs.cluster || 'devnet' }}
@@ -55,7 +55,7 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --force
+          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked --force
 
       - name: Setup Solana Wallet
         run: |
