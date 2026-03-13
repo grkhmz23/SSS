@@ -27,7 +27,6 @@ use spl_token_2022::{
 use spl_token_metadata_interface::{
     instruction as token_metadata_instruction, state::TokenMetadata,
 };
-use std::convert::TryFrom;
 
 /// Initialize a new stablecoin with specified configuration
 pub fn handler(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {

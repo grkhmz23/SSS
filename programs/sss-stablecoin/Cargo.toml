@@ -22,6 +22,7 @@ anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 solana-program = { workspace = true }
 spl-memo = { workspace = true }
+spl-pod = { workspace = true }
 spl-token = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-token-metadata-interface = { workspace = true }
