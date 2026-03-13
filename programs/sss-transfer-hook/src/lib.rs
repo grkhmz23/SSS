@@ -49,7 +49,7 @@ pub mod sss_transfer_hook {
             HookError::InvalidStablecoinConfig
         );
         require_keys_eq!(
-            ctx.accounts.stablecoin_config.owner,
+            *ctx.accounts.stablecoin_config.owner,
             ctx.accounts.hook_config.stablecoin_program,
             HookError::InvalidStablecoinProgram
         );

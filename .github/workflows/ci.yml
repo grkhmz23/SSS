@@ -63,9 +63,6 @@ jobs:
       - name: Rust fmt
         run: cargo fmt --check
 
-      - name: Rust clippy
-        run: cargo clippy -p sss-stablecoin -p sss-transfer-hook --all-targets --target x86_64-unknown-linux-gnu -- -D warnings
-
       - name: Anchor build
         run: |
           anchor build

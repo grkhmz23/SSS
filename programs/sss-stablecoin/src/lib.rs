@@ -17,8 +17,7 @@ pub mod state;
 
 mod compliance;
 
-use instructions::*;
-use state::*;
+pub use instructions::*;
 
 declare_id!("Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb");
 
