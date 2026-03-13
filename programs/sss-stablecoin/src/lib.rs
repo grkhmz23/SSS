@@ -17,6 +17,16 @@ pub mod state;
 
 mod compliance;
 
+pub use instructions::blacklist;
+pub use instructions::burn;
+pub use instructions::freeze_thaw;
+pub use instructions::initialize;
+pub use instructions::mint;
+pub use instructions::pause;
+pub use instructions::seize;
+pub use instructions::transfer_authority;
+pub use instructions::update_minter;
+pub use instructions::update_roles;
 pub use instructions::*;
 
 declare_id!("Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb");
