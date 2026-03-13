@@ -32,10 +32,9 @@ export function ComplianceView() {
   async function run(key: string, action: () => Promise<string>) {
     setLoading(key);
     try {
-      const signature = await action();
-      window.alert(`Transaction submitted successfully.\n\nSignature:\n${signature}`);
+      await action();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : String(error));
+      console.error(error);
     } finally {
       setLoading(null);
     }

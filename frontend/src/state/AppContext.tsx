@@ -10,9 +10,11 @@ import type {
   Lockfile,
   LogEntry,
   MinterRecord,
+  NotificationItem,
   OperatorSigner,
   StablecoinSummary,
 } from '../app/types';
+import { explorerUrl } from '../lib/format';
 import { downloadLockfile, parseLockfile } from '../lib/lockfile';
 import { parseOperatorSigner, toKeypair } from '../lib/operatorSigner';
 import { type ActiveSession, sssAdapter } from '../lib/sssAdapter';
@@ -53,8 +55,10 @@ interface AppContextValue extends SessionState {
   rpcUrl: string;
   operatorSigner: OperatorSigner | null;
   walletAddress: string | null;
+  notifications: NotificationItem[];
   setActiveTab: (value: string) => void;
   setRpcUrl: (value: string) => void;
+  dismissNotification: (id: string) => void;
   importOperatorSigner: (raw: string) => Promise<void>;
   clearOperatorSigner: () => void;
   loadLockfile: (raw?: string) => Promise<void>;
@@ -79,6 +83,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [minters, setMinters] = useState<MinterRecord[]>([]);
   const [holders, setHolders] = useState<HolderRecord[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [session, setSession] = useState<ActiveSession | null>(null);
 
   const connectedWalletAuthority = useMemo<TransactionAuthority | null>(() => {
@@ -116,6 +121,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       ...current,
     ]);
+  }
+
+  function pushNotification(item: Omit<NotificationItem, 'id'>) {
+    const id = crypto.randomUUID();
+    setNotifications((current) => [...current, { ...item, id }]);
+    window.setTimeout(() => {
+      setNotifications((current) => current.filter((entry) => entry.id !== id));
+    }, 8000);
+  }
+
+  function dismissNotification(id: string) {
+    setNotifications((current) => current.filter((entry) => entry.id !== id));
   }
 
   async function refreshFromSession(nextSession: ActiveSession) {
@@ -187,12 +204,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: 'success',
         signature: result.session.lockfile.mint,
       });
+      pushNotification({
+        title: 'Deployment Successful',
+        message: `${values.name} (${values.symbol}) is ready on ${environment}.`,
+        variant: 'success',
+        explorerUrl: explorerUrl(result.session.lockfile.mint, 'address', environment, rpcUrl),
+      });
     } catch (error) {
       addLog({
         action: 'deploy',
         details: error instanceof Error ? error.message : String(error),
         actor: connectedWalletAuthority?.publicKey.toBase58() ?? operatorSigner?.label ?? 'Operator',
         status: 'failed',
+      });
+      pushNotification({
+        title: 'Deployment Failed',
+        message: error instanceof Error ? error.message : String(error),
+        variant: 'error',
       });
       throw error;
     }
@@ -278,6 +306,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: 'success',
         signature,
       });
+      pushNotification({
+        title: `${name} successful`,
+        message: `Transaction confirmed on ${environment}.`,
+        variant: 'success',
+        explorerUrl: explorerUrl(signature, 'tx', environment, rpcUrl),
+      });
       await refreshData();
       return signature;
     } catch (error) {
@@ -286,6 +320,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         details: error instanceof Error ? error.message : String(error),
         actor: connectedWalletAuthority?.publicKey.toBase58() ?? operatorSigner?.label ?? 'Operator',
         status: 'failed',
+      });
+      pushNotification({
+        title: `${name} failed`,
+        message: error instanceof Error ? error.message : String(error),
+        variant: 'error',
       });
       throw error;
     }
@@ -350,6 +389,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       rpcUrl,
       operatorSigner,
       walletAddress: publicKey?.toBase58() ?? null,
+      notifications,
       lockfile,
       summary,
       minters,
@@ -357,6 +397,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       logs,
       setActiveTab,
       setRpcUrl,
+      dismissNotification,
       importOperatorSigner: importOperator,
       clearOperatorSigner: () => setOperatorSigner(null),
       loadLockfile: loadLockfileAction,
@@ -366,7 +407,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshMinters,
       performOperation,
     }),
-    [activeTab, environment, rpcUrl, operatorSigner, publicKey, lockfile, summary, minters, holders, logs],
+    [activeTab, environment, rpcUrl, operatorSigner, publicKey, notifications, lockfile, summary, minters, holders, logs],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

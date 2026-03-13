@@ -19,11 +19,10 @@ export function GovernanceView() {
   async function run(key: string, action: () => Promise<string>) {
     setLoading(key);
     try {
-      const signature = await action();
+      await action();
       await refreshMinters();
-      window.alert(`Transaction submitted successfully.\n\nSignature:\n${signature}`);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : String(error));
+      console.error(error);
     } finally {
       setLoading(null);
     }

@@ -6,6 +6,7 @@ import { ComplianceView } from '../features/compliance/ComplianceView';
 import { GovernanceView } from '../features/governance/GovernanceView';
 import { MonitoringView } from '../features/monitoring/MonitoringView';
 import { SystemPanel } from '../features/system/SystemPanel';
+import { NotificationStack } from '../components/ui/NotificationStack';
 import { useApp } from '../state/AppContext';
 
 export function App() {
@@ -18,6 +19,8 @@ export function App() {
     walletAddress,
     operatorSigner,
     clearOperatorSigner,
+    notifications,
+    dismissNotification,
   } = useApp();
 
   return (
@@ -55,6 +58,7 @@ export function App() {
           </div>
         </footer>
       </main>
+      <NotificationStack items={notifications} onDismiss={dismissNotification} />
     </div>
   );
 }

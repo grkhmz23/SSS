@@ -19,3 +19,23 @@ export function formatBigint(value: bigint | number | null | undefined): string 
 export function formatDate(value: Date): string {
   return value.toLocaleString();
 }
+
+export function explorerUrl(
+  value: string,
+  type: 'address' | 'tx',
+  environment: 'mainnet-beta' | 'devnet' | 'localnet',
+  rpcUrl?: string,
+): string {
+  const path = type === 'tx' ? `tx/${value}` : `address/${value}`;
+  const base = `https://explorer.solana.com/${path}`;
+
+  if (environment === 'mainnet-beta') {
+    return base;
+  }
+
+  if (environment === 'localnet' && rpcUrl) {
+    return `${base}?cluster=custom&customUrl=${encodeURIComponent(rpcUrl)}`;
+  }
+
+  return `${base}?cluster=${environment}`;
+}

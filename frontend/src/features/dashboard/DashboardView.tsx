@@ -3,12 +3,12 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { DEVNET_PROGRAM_IDS } from '../../app/constants';
-import { formatBigint } from '../../lib/format';
+import { explorerUrl, formatBigint } from '../../lib/format';
 import { useApp } from '../../state/AppContext';
 import { CreateFlow } from '../create/CreateFlow';
 
 export function DashboardView() {
-  const { summary, setActiveTab } = useApp();
+  const { summary, setActiveTab, environment, rpcUrl } = useApp();
 
   if (!summary) {
     return <CreateFlow />;
@@ -25,7 +25,15 @@ export function DashboardView() {
           </h1>
           <div className="mt-2 flex items-center gap-2 rounded-lg border border-white/5 bg-white/5 px-3 py-1.5 font-mono text-sm text-zinc-400">
             <span className="truncate">Mint: {summary.address}</span>
-            <ExternalLink className="h-4 w-4 text-emerald-400" />
+            <a
+              href={explorerUrl(summary.address, 'address', environment, rpcUrl)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300"
+            >
+              <span>View on Explorer</span>
+              <ExternalLink className="h-4 w-4" />
+            </a>
           </div>
         </div>
         <div className="flex gap-3">
@@ -53,10 +61,10 @@ export function DashboardView() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card title="Devnet Proof & Program Surface" icon={<Server className="h-5 w-5" />} className="lg:col-span-2">
           <div className="space-y-4 font-mono text-sm">
-            <ProgramPanel label="SSS Core Program" value={DEVNET_PROGRAM_IDS.stablecoin} />
-            <ProgramPanel label="Transfer Hook Program" value={DEVNET_PROGRAM_IDS.transferHook} />
-            <ProgramPanel label="Stablecoin Config" value={summary.configAddress} />
-            <ProgramPanel label="Treasury" value={summary.treasury} />
+            <ProgramPanel label="SSS Core Program" value={DEVNET_PROGRAM_IDS.stablecoin} environment={environment} rpcUrl={rpcUrl} />
+            <ProgramPanel label="Transfer Hook Program" value={DEVNET_PROGRAM_IDS.transferHook} environment={environment} rpcUrl={rpcUrl} />
+            <ProgramPanel label="Stablecoin Config" value={summary.configAddress} environment={environment} rpcUrl={rpcUrl} />
+            <ProgramPanel label="Treasury" value={summary.treasury} environment={environment} rpcUrl={rpcUrl} />
           </div>
         </Card>
         <Card title="Quick Actions" icon={<Activity className="h-5 w-5" />}>
@@ -110,10 +118,31 @@ function MetricCard({
   );
 }
 
-function ProgramPanel({ label, value }: { label: string; value: string }) {
+function ProgramPanel({
+  label,
+  value,
+  environment,
+  rpcUrl,
+}: {
+  label: string;
+  value: string;
+  environment: 'mainnet-beta' | 'devnet' | 'localnet';
+  rpcUrl: string;
+}) {
   return (
     <div className="rounded-xl border border-white/5 bg-black/30 p-4">
-      <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className="mb-1.5 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <span>{label}</span>
+        <a
+          href={explorerUrl(value, 'address', environment, rpcUrl)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300"
+        >
+          Explorer
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
       <div className="break-all text-emerald-300">{value}</div>
     </div>
   );

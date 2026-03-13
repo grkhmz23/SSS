@@ -87,3 +87,11 @@ export interface CreateStablecoinFormValues {
   defaultAccountFrozen: boolean;
   seizeRequiresBlacklist: boolean;
 }
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  variant: 'success' | 'error';
+  explorerUrl?: string;
+}
