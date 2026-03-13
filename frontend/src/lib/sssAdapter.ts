@@ -127,6 +127,15 @@ function metadataFromLockfile(lockfile: Lockfile, fallbackPreset: Preset) {
   };
 }
 
+function isRpcIndexingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('excluded from account secondary indexes') ||
+    message.includes('429') ||
+    message.toLowerCase().includes('too many requests')
+  );
+}
+
 export class SssAdapter {
   async loadFromLockfile(lockfile: Lockfile, runtime: RuntimeContext): Promise<{
     session: ActiveSession;
@@ -345,40 +354,47 @@ export class SssAdapter {
   }
 
   async listHolders(session: ActiveSession): Promise<HolderRecord[]> {
-    const accounts = await session.connection.getParsedProgramAccounts(TOKEN_2022_PROGRAM_ID, {
-      filters: [{ memcmp: { offset: 0, bytes: session.client.addresses.mint.toBase58() } }],
-    });
+    try {
+      const accounts = await session.connection.getParsedProgramAccounts(TOKEN_2022_PROGRAM_ID, {
+        filters: [{ memcmp: { offset: 0, bytes: session.client.addresses.mint.toBase58() } }],
+      });
 
-    const holders = await Promise.all(
-      accounts
-        .filter((entry) => {
-          const parsed = entry.account.data as ParsedAccountData;
-          return parsed.program === 'spl-token' && parsed.parsed.type === 'account';
-        })
-        .slice(0, 50)
-        .map(async (entry) => {
-          const parsed = entry.account.data as ParsedAccountData;
-          const info = parsed.parsed.info;
-          const owner = new PublicKey(String(info.owner));
-          const complianceRecord = SolanaStablecoin.deriveComplianceRecordPda(
-            session.client.addresses.mint,
-            owner,
-            session.client.stablecoinProgramId,
-          );
-          const compliance = await session.connection.getAccountInfo(complianceRecord, 'confirmed');
-          const isBlacklisted = Boolean(compliance?.data?.[73]);
+      const holders = await Promise.all(
+        accounts
+          .filter((entry) => {
+            const parsed = entry.account.data as ParsedAccountData;
+            return parsed.program === 'spl-token' && parsed.parsed.type === 'account';
+          })
+          .slice(0, 50)
+          .map(async (entry) => {
+            const parsed = entry.account.data as ParsedAccountData;
+            const info = parsed.parsed.info;
+            const owner = new PublicKey(String(info.owner));
+            const complianceRecord = SolanaStablecoin.deriveComplianceRecordPda(
+              session.client.addresses.mint,
+              owner,
+              session.client.stablecoinProgramId,
+            );
+            const compliance = await session.connection.getAccountInfo(complianceRecord, 'confirmed');
+            const isBlacklisted = Boolean(compliance?.data?.[73]);
 
-          return {
-            tokenAccount: entry.pubkey.toBase58(),
-            owner: owner.toBase58(),
-            balance: BigInt(info.tokenAmount.amount),
-            isBlacklisted,
-            isFrozen: info.state === 'frozen',
-          } satisfies HolderRecord;
-        }),
-    );
+            return {
+              tokenAccount: entry.pubkey.toBase58(),
+              owner: owner.toBase58(),
+              balance: BigInt(info.tokenAmount.amount),
+              isBlacklisted,
+              isFrozen: info.state === 'frozen',
+            } satisfies HolderRecord;
+          }),
+      );
 
-    return holders.sort((left, right) => compareBigintsDesc(left.balance, right.balance));
+      return holders.sort((left, right) => compareBigintsDesc(left.balance, right.balance));
+    } catch (error) {
+      if (isRpcIndexingError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   async listMinters(session: ActiveSession): Promise<MinterRecord[]> {
@@ -404,33 +420,40 @@ export class SssAdapter {
   }
 
   async getAuditLog(session: ActiveSession, limit = 30): Promise<LogEntry[]> {
-    const signatures = await session.connection.getSignaturesForAddress(
-      session.client.stablecoinProgramId,
-      { limit },
-      'confirmed',
-    );
+    try {
+      const signatures = await session.connection.getSignaturesForAddress(
+        session.client.stablecoinProgramId,
+        { limit },
+        'confirmed',
+      );
 
-    const rows = await Promise.all(
-      signatures.map(async (item, index) => {
-        const tx = await session.connection.getTransaction(item.signature, {
-          maxSupportedTransactionVersion: 0,
-        });
-        const log =
-          tx?.meta?.logMessages?.find((line) => line.includes('Program log:')) ?? 'Program event';
+      const rows = await Promise.all(
+        signatures.map(async (item, index) => {
+          const tx = await session.connection.getTransaction(item.signature, {
+            maxSupportedTransactionVersion: 0,
+          });
+          const log =
+            tx?.meta?.logMessages?.find((line) => line.includes('Program log:')) ?? 'Program event';
 
-        return {
-          id: `${item.signature}-${index}`,
-          timestamp: new Date((item.blockTime ?? 0) * 1000),
-          action: log.replace('Program log: ', ''),
-          details: `Slot ${item.slot}`,
-          actor: session.client.stablecoinProgramId.toBase58(),
-          status: item.err ? 'failed' : 'success',
-          signature: item.signature,
-        } satisfies LogEntry;
-      }),
-    );
+          return {
+            id: `${item.signature}-${index}`,
+            timestamp: new Date((item.blockTime ?? 0) * 1000),
+            action: log.replace('Program log: ', ''),
+            details: `Slot ${item.slot}`,
+            actor: session.client.stablecoinProgramId.toBase58(),
+            status: item.err ? 'failed' : 'success',
+            signature: item.signature,
+          } satisfies LogEntry;
+        }),
+      );
 
-    return rows;
+      return rows;
+    } catch (error) {
+      if (isRpcIndexingError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   private async resolveTokenAccount(

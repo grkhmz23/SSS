@@ -1,7 +1,7 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Keypair, type PublicKey, type Transaction, type VersionedTransaction } from '@solana/web3.js';
 import type { ReactNode } from 'react';
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_ENVIRONMENT, DEFAULT_RPC_URL } from '../app/constants';
 import type {
   CreateStablecoinFormValues,
@@ -66,6 +66,7 @@ interface AppContextValue extends SessionState {
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
+const LOCKFILE_STORAGE_KEY = 'sss.lockfile';
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
@@ -120,9 +121,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   async function refreshFromSession(nextSession: ActiveSession) {
     const nextSummary = await sssAdapter.getStatus(nextSession);
     const [nextMinters, nextHolders, nextLogs] = await Promise.all([
-      sssAdapter.listMinters(nextSession),
-      sssAdapter.listHolders(nextSession),
-      sssAdapter.getAuditLog(nextSession),
+      sssAdapter.listMinters(nextSession).catch(() => []),
+      sssAdapter.listHolders(nextSession).catch(() => []),
+      sssAdapter.getAuditLog(nextSession, 10).catch(() => []),
     ]);
     setSummary(nextSummary);
     setMinters(nextMinters);
@@ -156,6 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLockfile(parsed);
     setSession(result.session);
     setSummary(result.summary);
+    window.localStorage.setItem(LOCKFILE_STORAGE_KEY, JSON.stringify(parsed));
     await refreshFromSession(result.session);
     addLog({
       action: 'Lockfile Loaded',
@@ -174,6 +176,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLockfile(result.session.lockfile);
     setSession(result.session);
     setSummary(result.summary);
+    window.localStorage.setItem(LOCKFILE_STORAGE_KEY, JSON.stringify(result.session.lockfile));
     setActiveTab('dashboard');
     await refreshFromSession(result.session);
     addLog({
@@ -273,6 +276,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     downloadLockfile(lockfile);
   }
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(LOCKFILE_STORAGE_KEY);
+    if (!raw || session) {
+      return;
+    }
+
+    try {
+      const parsed = parseLockfile(raw);
+      void (async () => {
+        const result = await sssAdapter.loadFromLockfile(parsed, {
+          environment,
+          rpcUrl,
+          authority: runtimeAuthority,
+        });
+        setLockfile(parsed);
+        setSession(result.session);
+        setSummary(result.summary);
+        await refreshFromSession(result.session);
+      })();
+    } catch {
+      window.localStorage.removeItem(LOCKFILE_STORAGE_KEY);
+    }
+  }, [environment, rpcUrl, runtimeAuthority, session]);
 
   const value = useMemo<AppContextValue>(
     () => ({
