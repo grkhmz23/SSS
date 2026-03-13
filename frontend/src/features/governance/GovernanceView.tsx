@@ -16,11 +16,14 @@ export function GovernanceView() {
 
   const activeMinters = useMemo(() => minters.filter((item) => item.active), [minters]);
 
-  async function run(key: string, action: () => Promise<void>) {
+  async function run(key: string, action: () => Promise<string>) {
     setLoading(key);
     try {
-      await action();
+      const signature = await action();
       await refreshMinters();
+      window.alert(`Transaction submitted successfully.\n\nSignature:\n${signature}`);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(null);
     }

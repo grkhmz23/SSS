@@ -20,11 +20,12 @@ export function OperationsView() {
 
   async function run(
     key: string,
-    action: () => Promise<void>,
+    action: () => Promise<string>,
   ) {
     setLoadingAction(key);
     try {
-      await action();
+      const signature = await action();
+      window.alert(`Transaction submitted successfully.\n\nSignature:\n${signature}`);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : String(error));
     } finally {

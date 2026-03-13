@@ -62,7 +62,7 @@ interface AppContextValue extends SessionState {
   deployStablecoin: (values: CreateStablecoinFormValues) => Promise<void>;
   refreshData: () => Promise<void>;
   refreshMinters: () => Promise<void>;
-  performOperation: (name: OperationName, payload?: Record<string, string>) => Promise<void>;
+  performOperation: (name: OperationName, payload?: Record<string, string>) => Promise<string>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -279,6 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         signature,
       });
       await refreshData();
+      return signature;
     } catch (error) {
       addLog({
         action: name,
