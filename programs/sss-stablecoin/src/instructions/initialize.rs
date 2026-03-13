@@ -182,7 +182,7 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
 
     if args.default_account_frozen {
         invoke(
-            &default_account_state_instruction::initialize(
+            &default_account_state_instruction::initialize_default_account_state(
                 &ctx.accounts.token_program.key(),
                 &mint_key,
                 &AccountState::Frozen,

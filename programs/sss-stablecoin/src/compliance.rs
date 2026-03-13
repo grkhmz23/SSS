@@ -2,6 +2,7 @@
 
 use crate::{constants::COMPLIANCE_RECORD_SEED, error::StablecoinError, state::ComplianceRecord};
 use anchor_lang::prelude::*;
+use solana_program::hash;
 
 /// Validate that a wallet is NOT blacklisted
 pub fn validate_not_blacklisted(
@@ -70,7 +71,7 @@ pub fn validate_blacklisted(
 
 /// Hash a reason string for storage
 pub fn hash_reason(reason: &str) -> [u8; 32] {
-    anchor_lang::solana_program::hash::hash(reason.as_bytes()).to_bytes()
+    hash::hash(reason.as_bytes()).to_bytes()
 }
 
 fn parse_compliance_record(record: &UncheckedAccount) -> Result<ComplianceRecord> {
