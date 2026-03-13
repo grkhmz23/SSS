@@ -1,16 +1,27 @@
+import { CircleHelp } from 'lucide-react';
 import type { InputHTMLAttributes } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   helper?: string;
+  info?: string;
 }
 
-export function Input({ label, helper, className = '', ...props }: InputProps) {
+export function Input({ label, helper, info, className = '', ...props }: InputProps) {
   return (
     <label className="block w-full">
       {label ? (
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-          {label}
+        <span className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-300">
+          <span>{label}</span>
+          {info ? (
+            <span
+              className="inline-flex text-zinc-500 transition-colors hover:text-emerald-300"
+              title={info}
+              aria-label={info}
+            >
+              <CircleHelp className="h-3.5 w-3.5" />
+            </span>
+          ) : null}
         </span>
       ) : null}
       <input

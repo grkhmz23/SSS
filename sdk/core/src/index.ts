@@ -8,6 +8,7 @@ import {
   createInitializeMint2Instruction,
   createInitializePermanentDelegateInstruction,
   createInitializeTransferHookInstruction,
+  getAssociatedTokenAddressSync,
   getAccount,
   getMintLen,
   getMint,
@@ -66,6 +67,14 @@ function programForId(idl: unknown, programId: PublicKey, provider: AnchorProvid
   };
   const Ctor = Program as unknown as ProgramCtor;
   return new Ctor(configuredIdl, provider);
+}
+
+function resolveTreasuryTokenAccount(mint: PublicKey, treasury: PublicKey): PublicKey {
+  if (PublicKey.isOnCurve(treasury.toBytes())) {
+    return getAssociatedTokenAddressSync(mint, treasury, false, TOKEN_2022_PROGRAM_ID);
+  }
+
+  return treasury;
 }
 
 export interface StablecoinConfigAccount {
@@ -227,6 +236,7 @@ export class SolanaStablecoin {
             seizer: params.roles.seizer,
             treasury: params.roles.treasury,
           };
+    const treasuryTokenAccount = resolveTreasuryTokenAccount(mint.publicKey, roles.treasury);
 
     const initializeArgs = {
       name: params.name,
@@ -245,7 +255,7 @@ export class SolanaStablecoin {
         burner: roles.burner ?? null,
         blacklister: roles.blacklister ?? null,
         seizer: roles.seizer ?? null,
-        treasury: roles.treasury,
+        treasury: treasuryTokenAccount,
       },
       initialMinterQuota: new BN(params.initialMinterQuota.toString()),
       initialMinterWindowSeconds: new BN(params.initialMinterWindowSeconds),
@@ -368,7 +378,7 @@ export class SolanaStablecoin {
         .initializeHook({
           stablecoinProgram: stablecoinProgramId,
           stablecoinConfig: config,
-          treasuryTokenAccount: roles.treasury,
+          treasuryTokenAccount: treasuryTokenAccount,
           enforcePause: true,
         })
         .accounts({

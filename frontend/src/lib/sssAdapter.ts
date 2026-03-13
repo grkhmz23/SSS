@@ -154,6 +154,8 @@ export class SssAdapter {
     const authority = requireAuthority(runtime.authority);
     const connection = createConnection(runtime);
     const preset = asPreset(input.preset);
+    const treasuryAddress =
+      input.treasury.trim().length > 0 ? input.treasury.trim() : authority.publicKey.toBase58();
 
     const client =
       preset !== null
@@ -164,7 +166,7 @@ export class SssAdapter {
             symbol: input.symbol,
             uri: input.uri,
             decimals: input.decimals,
-            treasury: new PublicKey(input.treasury),
+            treasury: new PublicKey(treasuryAddress),
             initialMinterQuota: BigInt(input.initialMinterQuota),
             initialMinterWindowSeconds: Number(input.initialMinterWindowSeconds),
           })
@@ -182,7 +184,7 @@ export class SssAdapter {
               seizeRequiresBlacklist: input.seizeRequiresBlacklist,
             },
             roles: {
-              treasury: new PublicKey(input.treasury),
+              treasury: new PublicKey(treasuryAddress),
             },
             initialMinterQuota: BigInt(input.initialMinterQuota),
             initialMinterWindowSeconds: Number(input.initialMinterWindowSeconds),

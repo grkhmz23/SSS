@@ -46,6 +46,14 @@ export function App() {
           {activeTab === 'governance' ? <GovernanceView /> : null}
           {activeTab === 'monitoring' ? <MonitoringView /> : null}
         </div>
+        <footer className="border-t border-white/10 bg-black/20 px-6 py-4 text-xs text-zinc-500 md:px-10 lg:px-12">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <span>Solana Stablecoin Standard demo console for grant submission review.</span>
+            <span className="font-mono text-zinc-400">
+              Devnet programs: 5C7L...XkEL / CHfi...Jt1H
+            </span>
+          </div>
+        </footer>
       </main>
     </div>
   );

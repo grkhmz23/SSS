@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronRight, FileJson, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, ChevronRight, CircleHelp, FileJson, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useApp } from '../../state/AppContext';
 import { Button } from '../../components/ui/Button';
@@ -13,7 +13,7 @@ const defaults: CreateStablecoinFormValues = {
   uri: 'https://example.org/token.json',
   decimals: 6,
   treasury: '',
-  initialMinterQuota: '1000000',
+  initialMinterQuota: '1000000000',
   initialMinterWindowSeconds: '86400',
   enableCompliance: false,
   enablePermanentDelegate: false,
@@ -142,12 +142,14 @@ export function CreateFlow() {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Input
                   label="Token Name"
+                  info="Human-readable name stored on-chain in the SSS config PDA."
                   value={values.name}
                   onChange={(event) => update('name', event.target.value)}
                   required
                 />
                 <Input
                   label="Symbol"
+                  info="Ticker-like symbol for the stablecoin mint."
                   value={values.symbol}
                   onChange={(event) => update('symbol', event.target.value)}
                   required
@@ -156,6 +158,7 @@ export function CreateFlow() {
 
               <Input
                 label="Metadata URI"
+                info="Metadata reference string written into the on-chain config and exposed through the mint metadata pointer."
                 value={values.uri}
                 onChange={(event) => update('uri', event.target.value)}
                 helper="Stored on-chain in the SSS config PDA and referenced by the mint metadata pointer."
@@ -164,6 +167,7 @@ export function CreateFlow() {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Input
                   label="Decimals"
+                  info="Token precision. With 6 decimals, 1_000_000 base units equals 1 token."
                   type="number"
                   min={0}
                   max={9}
@@ -172,23 +176,28 @@ export function CreateFlow() {
                   required
                 />
                 <Input
-                  label="Treasury Token Account"
+                  label="Treasury Wallet or Token Account"
+                  info="You can paste a treasury wallet or a Token-2022 token account. If left empty, the app derives the treasury ATA from the connected authority wallet."
                   value={values.treasury}
                   onChange={(event) => update('treasury', event.target.value)}
-                  required
+                  helper="For new deployments, leaving this blank uses the connected wallet as treasury owner and derives its associated token account automatically."
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Input
                   label="Initial Minter Quota"
+                  info="Maximum amount the initial minter can issue during one quota window, measured in base units."
                   value={values.initialMinterQuota}
                   onChange={(event) => update('initialMinterQuota', event.target.value)}
+                  helper="With 6 decimals, 1,000,000,000 base units equals 1,000 tokens."
                 />
                 <Input
                   label="Minter Window (Seconds)"
+                  info="Length of the quota window before the initial minter allowance resets."
                   value={values.initialMinterWindowSeconds}
                   onChange={(event) => update('initialMinterWindowSeconds', event.target.value)}
+                  helper="86400 seconds = 24 hours."
                 />
               </div>
 
@@ -198,14 +207,37 @@ export function CreateFlow() {
                     <ShieldCheck className="h-5 w-5" />
                     Compliance Settings
                   </h4>
+                  <div className="mb-4 rounded-xl border border-white/5 bg-black/20 p-4 text-xs leading-relaxed text-zinc-400">
+                    Hover the help icon beside each field label to see what it controls. For a standard SSS-2 deployment, keep compliance, permanent delegate, and transfer hook enabled.
+                  </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {[
-                    ['Enable Compliance', 'enableCompliance'],
-                    ['Permanent Delegate', 'enablePermanentDelegate'],
-                    ['Transfer Hook', 'enableTransferHook'],
-                    ['Default Frozen Accounts', 'defaultAccountFrozen'],
-                      ['Seize Requires Blacklist', 'seizeRequiresBlacklist'],
-                    ].map(([label, field]) => (
+                    [
+                      'Enable Compliance',
+                      'enableCompliance',
+                      'Turns on blacklist records and the compliance-specific instruction set.',
+                    ],
+                    [
+                      'Permanent Delegate',
+                      'enablePermanentDelegate',
+                      'Allows the protocol-controlled delegate path used by SSS-2 seizure flows.',
+                    ],
+                    [
+                      'Transfer Hook',
+                      'enableTransferHook',
+                      'Checks transfers in real time and blocks blacklisted or paused flows.',
+                    ],
+                    [
+                      'Default Frozen Accounts',
+                      'defaultAccountFrozen',
+                      'New token accounts start frozen until explicitly thawed. Usually leave this off for demos.',
+                    ],
+                    [
+                      'Seize Requires Blacklist',
+                      'seizeRequiresBlacklist',
+                      'Requires a wallet to be blacklisted before seizure is allowed.',
+                    ],
+                    ].map(([label, field, info]) => (
                       <label
                         key={field}
                         className="flex items-center gap-3 rounded-xl border border-white/5 bg-black/20 px-4 py-3 text-sm text-zinc-200"
@@ -225,7 +257,16 @@ export function CreateFlow() {
                             )
                           }
                         />
-                        {label}
+                        <span className="flex items-center gap-2">
+                          <span>{label}</span>
+                          <span
+                            className="inline-flex text-zinc-500 transition-colors hover:text-amber-300"
+                            title={info}
+                            aria-label={info}
+                          >
+                            <CircleHelp className="h-3.5 w-3.5" />
+                          </span>
+                        </span>
                       </label>
                     ))}
                   </div>
