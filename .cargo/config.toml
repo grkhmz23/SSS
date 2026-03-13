@@ -1,5 +1,2 @@
-[build]
-target = "sbf-solana-solana"
-
 [env]
 CC = ""
