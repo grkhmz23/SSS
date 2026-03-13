@@ -33,7 +33,7 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Install JS deps
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -84,7 +84,7 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Install JS deps
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Lint
         run: pnpm -r lint
