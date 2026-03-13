@@ -118,8 +118,7 @@ fn validate_preset(args: &InitializeArgs) -> Result<()> {
 fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> Result<()> {
     let mint_key = ctx.accounts.mint.key();
     let config_key = ctx.accounts.config.key();
-    let config_signer_seeds: &[&[u8]] =
-        &[CONFIG_SEED, mint_key.as_ref(), &[ctx.accounts.config.bump]];
+    let config_signer_seeds: &[&[u8]] = &[CONFIG_SEED, mint_key.as_ref(), &[ctx.bumps.config]];
 
     let mut extensions = vec![ExtensionType::MetadataPointer];
     if args.enable_permanent_delegate {
