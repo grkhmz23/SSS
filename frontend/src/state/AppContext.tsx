@@ -168,24 +168,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   async function deploy(values: CreateStablecoinFormValues) {
-    const result = await sssAdapter.createStablecoin(values, {
-      environment,
-      rpcUrl,
-      authority: runtimeAuthority,
-    });
-    setLockfile(result.session.lockfile);
-    setSession(result.session);
-    setSummary(result.summary);
-    window.localStorage.setItem(LOCKFILE_STORAGE_KEY, JSON.stringify(result.session.lockfile));
-    setActiveTab('dashboard');
-    await refreshFromSession(result.session);
-    addLog({
-      action: 'Stablecoin Deployed',
-      details: `${values.name} (${values.preset}) created`,
-      actor: connectedWalletAuthority?.publicKey.toBase58() ?? operatorSigner?.label ?? 'Operator',
-      status: 'success',
-      signature: result.session.lockfile.mint,
-    });
+    try {
+      const result = await sssAdapter.createStablecoin(values, {
+        environment,
+        rpcUrl,
+        authority: runtimeAuthority,
+      });
+      setLockfile(result.session.lockfile);
+      setSession(result.session);
+      setSummary(result.summary);
+      window.localStorage.setItem(LOCKFILE_STORAGE_KEY, JSON.stringify(result.session.lockfile));
+      setActiveTab('dashboard');
+      await refreshFromSession(result.session);
+      addLog({
+        action: 'Stablecoin Deployed',
+        details: `${values.name} (${values.preset}) created`,
+        actor: connectedWalletAuthority?.publicKey.toBase58() ?? operatorSigner?.label ?? 'Operator',
+        status: 'success',
+        signature: result.session.lockfile.mint,
+      });
+    } catch (error) {
+      addLog({
+        action: 'deploy',
+        details: error instanceof Error ? error.message : String(error),
+        actor: connectedWalletAuthority?.publicKey.toBase58() ?? operatorSigner?.label ?? 'Operator',
+        status: 'failed',
+      });
+      throw error;
+    }
   }
 
   async function refreshData() {
@@ -208,66 +218,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
       throw new Error('Load a lockfile or deploy a stablecoin first.');
     }
 
-    let signature = '';
-    switch (name) {
-      case 'mint':
-        signature = await sssAdapter.mint(session, payload.recipient, BigInt(payload.amount));
-        break;
-      case 'burn':
-        signature = await sssAdapter.burn(
-          session,
-          payload.sourceTokenAccount,
-          BigInt(payload.amount),
-        );
-        break;
-      case 'freeze':
-        signature = await sssAdapter.freeze(session, payload.tokenAccount);
-        break;
-      case 'thaw':
-        signature = await sssAdapter.thaw(session, payload.tokenAccount);
-        break;
-      case 'pause':
-        signature = await sssAdapter.pause(session);
-        break;
-      case 'unpause':
-        signature = await sssAdapter.unpause(session);
-        break;
-      case 'add-minter':
-        signature = await sssAdapter.addMinter(
-          session,
-          payload.minter,
-          BigInt(payload.quotaAmount),
-          Number(payload.windowSeconds),
-        );
-        break;
-      case 'remove-minter':
-        signature = await sssAdapter.removeMinter(session, payload.minter);
-        break;
-      case 'blacklist-add':
-        signature = await sssAdapter.blacklistAdd(session, payload.wallet, payload.reason);
-        break;
-      case 'blacklist-remove':
-        signature = await sssAdapter.blacklistRemove(session, payload.wallet);
-        break;
-      case 'seize':
-        signature = await sssAdapter.seize(
-          session,
-          payload.sourceTokenAccount,
-          payload.sourceOwner,
-          payload.destinationTokenAccount,
-          BigInt(payload.amount),
-        );
-        break;
-    }
+    try {
+      let signature = '';
+      switch (name) {
+        case 'mint':
+          signature = await sssAdapter.mint(session, payload.recipient, BigInt(payload.amount));
+          break;
+        case 'burn':
+          signature = await sssAdapter.burn(
+            session,
+            payload.sourceTokenAccount,
+            BigInt(payload.amount),
+          );
+          break;
+        case 'freeze':
+          signature = await sssAdapter.freeze(session, payload.tokenAccount);
+          break;
+        case 'thaw':
+          signature = await sssAdapter.thaw(session, payload.tokenAccount);
+          break;
+        case 'pause':
+          signature = await sssAdapter.pause(session);
+          break;
+        case 'unpause':
+          signature = await sssAdapter.unpause(session);
+          break;
+        case 'add-minter':
+          signature = await sssAdapter.addMinter(
+            session,
+            payload.minter,
+            BigInt(payload.quotaAmount),
+            Number(payload.windowSeconds),
+          );
+          break;
+        case 'remove-minter':
+          signature = await sssAdapter.removeMinter(session, payload.minter);
+          break;
+        case 'blacklist-add':
+          signature = await sssAdapter.blacklistAdd(session, payload.wallet, payload.reason);
+          break;
+        case 'blacklist-remove':
+          signature = await sssAdapter.blacklistRemove(session, payload.wallet);
+          break;
+        case 'seize':
+          signature = await sssAdapter.seize(
+            session,
+            payload.sourceTokenAccount,
+            payload.sourceOwner,
+            payload.destinationTokenAccount,
+            BigInt(payload.amount),
+          );
+          break;
+      }
 
-    addLog({
-      action: name,
-      details: JSON.stringify(payload),
-      actor: connectedWalletAuthority?.publicKey.toBase58() ?? operatorSigner?.label ?? 'Operator',
-      status: 'success',
-      signature,
-    });
-    await refreshData();
+      addLog({
+        action: name,
+        details: JSON.stringify(payload),
+        actor: connectedWalletAuthority?.publicKey.toBase58() ?? operatorSigner?.label ?? 'Operator',
+        status: 'success',
+        signature,
+      });
+      await refreshData();
+    } catch (error) {
+      addLog({
+        action: name,
+        details: error instanceof Error ? error.message : String(error),
+        actor: connectedWalletAuthority?.publicKey.toBase58() ?? operatorSigner?.label ?? 'Operator',
+        status: 'failed',
+      });
+      throw error;
+    }
   }
 
   function saveLockfile() {

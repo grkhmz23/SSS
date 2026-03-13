@@ -25,6 +25,8 @@ export function OperationsView() {
     setLoadingAction(key);
     try {
       await action();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error));
     } finally {
       setLoadingAction(null);
     }
@@ -62,11 +64,13 @@ export function OperationsView() {
               label="Recipient Wallet Or Token Account"
               value={mintRecipient}
               onChange={(event) => setMintRecipient(event.target.value)}
+              helper="If you paste a wallet address instead of a token account, Phantom may ask twice: once to create the ATA, once to mint."
             />
             <Input
               label="Mint Amount"
               value={mintAmount}
               onChange={(event) => setMintAmount(event.target.value)}
+              helper="Amount is in base units. With 6 decimals, 1,000,000 = 1 token."
             />
             <Button
               className="w-full"

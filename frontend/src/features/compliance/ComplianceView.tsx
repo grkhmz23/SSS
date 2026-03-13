@@ -33,6 +33,8 @@ export function ComplianceView() {
     setLoading(key);
     try {
       await action();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(null);
     }
