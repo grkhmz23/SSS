@@ -22,4 +22,4 @@ test = "pnpm tsx tests/run-anchor-tests.ts"
 
 [toolchain]
 anchor_version = "0.32.1"
-solana_version = "2.2.1"
+solana_version = "3.0.6"

@@ -8,7 +8,7 @@ on:
 
 env:
   RUST_VERSION: 1.85.0
-  SOLANA_VERSION: 2.2.1
+  SOLANA_VERSION: 3.0.6
   ANCHOR_VERSION: 0.32.1
 
 jobs:

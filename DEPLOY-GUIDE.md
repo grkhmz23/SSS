@@ -35,7 +35,7 @@ source $HOME/.cargo/env
 # Install Solana CLI
 sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
 export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-solana-install init 2.2.1
+solana-install init 3.0.6
 
 # Install Anchor CLI
 cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --force
@@ -95,7 +95,7 @@ jobs:
       - name: Setup Solana
         uses: metadaoproject/setup-solana@v1
         with:
-          solana-version: 2.2.1
+          solana-version: 3.0.6
           
       - name: Setup Anchor
         uses: metadaoproject/setup-anchor@v2
@@ -252,7 +252,7 @@ Your 10 SOL balance is sufficient.
 - Check: `ls -lh target/deploy/*.so`
 
 ### "BPF compilation failed"
-- Install platform tools: `solana-install init 2.2.1`
+- Install platform tools: `solana-install init 3.0.6`
 - Or use: `cargo build-sbf`
 
 ### "Anchor version mismatch"
