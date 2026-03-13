@@ -322,6 +322,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [environment, rpcUrl, runtimeAuthority, session]);
 
+  useEffect(() => {
+    if (!session || !lockfile || !runtimeAuthority) {
+      return;
+    }
+
+    if (session.authority.publicKey.equals(runtimeAuthority.publicKey)) {
+      return;
+    }
+
+    void (async () => {
+      const result = await sssAdapter.loadFromLockfile(lockfile, {
+        environment,
+        rpcUrl,
+        authority: runtimeAuthority,
+      });
+      setSession(result.session);
+      setSummary(result.summary);
+      await refreshFromSession(result.session);
+    })();
+  }, [environment, lockfile, rpcUrl, runtimeAuthority, session]);
+
   const value = useMemo<AppContextValue>(
     () => ({
       activeTab,
