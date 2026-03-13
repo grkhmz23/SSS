@@ -9,10 +9,12 @@ use crate::{
     state::{MinterRole, StablecoinConfig},
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{mint_to, Mint, MintTo, Token2022, TokenAccount};
+use anchor_spl::token_interface::{
+    mint_to, Mint as TokenMint, MintTo as TokenMintTo, Token2022, TokenAccount,
+};
 
 /// Mint new tokens to a recipient
-pub fn handler(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<Mint>, amount: u64) -> Result<()> {
     let config = &ctx.accounts.config;
     require!(!config.paused, StablecoinError::Paused);
     require_keys_eq!(
@@ -48,7 +50,7 @@ pub fn handler(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
     let config_seeds: &[&[u8]] = &[CONFIG_SEED, mint_key.as_ref(), &[config.bump]];
     let signer_seeds: &[&[&[u8]]] = &[config_seeds];
 
-    let cpi_accounts = MintTo {
+    let cpi_accounts = TokenMintTo {
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.recipient.to_account_info(),
         authority: ctx.accounts.config.to_account_info(),
@@ -90,7 +92,7 @@ fn update_quota(minter_role: &mut Account<MinterRole>, amount: u64) -> Result<()
 }
 
 #[derive(Accounts)]
-pub struct MintTokens<'info> {
+pub struct Mint<'info> {
     pub authority: Signer<'info>,
 
     #[account(
@@ -102,7 +104,7 @@ pub struct MintTokens<'info> {
     pub config: Account<'info, StablecoinConfig>,
 
     #[account(mut)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub mint: InterfaceAccount<'info, TokenMint>,
 
     #[account(mut)]
     pub recipient: InterfaceAccount<'info, TokenAccount>,

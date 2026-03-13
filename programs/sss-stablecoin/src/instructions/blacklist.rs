@@ -10,7 +10,7 @@ use crate::{
 use anchor_lang::prelude::*;
 
 /// Add a wallet to the blacklist
-pub fn add_handler(ctx: Context<UpsertComplianceRecord>, reason: String) -> Result<()> {
+pub fn add_handler(ctx: Context<AddToBlacklist>, reason: String) -> Result<()> {
     let config = &ctx.accounts.config;
     require!(
         config.compliance_enabled,
@@ -41,7 +41,7 @@ pub fn add_handler(ctx: Context<UpsertComplianceRecord>, reason: String) -> Resu
 }
 
 /// Remove a wallet from the blacklist
-pub fn remove_handler(ctx: Context<UpsertComplianceRecord>) -> Result<()> {
+pub fn remove_handler(ctx: Context<RemoveFromBlacklist>) -> Result<()> {
     let config = &ctx.accounts.config;
     require!(
         config.compliance_enabled,
@@ -76,7 +76,37 @@ fn is_blacklister(config: &StablecoinConfig, signer: &Pubkey) -> bool {
 }
 
 #[derive(Accounts)]
-pub struct UpsertComplianceRecord<'info> {
+pub struct AddToBlacklist<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    #[account(
+        seeds = [CONFIG_SEED, mint.key().as_ref()],
+        bump = config.bump,
+        has_one = mint @ StablecoinError::InvalidMint
+    )]
+    pub config: Account<'info, StablecoinConfig>,
+
+    /// CHECK: only used for seed derivation.
+    pub mint: UncheckedAccount<'info>,
+
+    /// CHECK: wallet under compliance review.
+    pub wallet: UncheckedAccount<'info>,
+
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = 8 + ComplianceRecord::INIT_SPACE,
+        seeds = [COMPLIANCE_RECORD_SEED, mint.key().as_ref(), wallet.key().as_ref()],
+        bump
+    )]
+    pub compliance_record: Account<'info, ComplianceRecord>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct RemoveFromBlacklist<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 

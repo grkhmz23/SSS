@@ -4,13 +4,15 @@ use crate::{
     constants::CONFIG_SEED, error::StablecoinError, events::Burned, state::StablecoinConfig,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{burn, Burn, Mint, Token2022, TokenAccount};
+use anchor_spl::token_interface::{
+    burn, Burn as TokenBurn, Mint as TokenMint, Token2022, TokenAccount,
+};
 
 /// Burn tokens from an account
 ///
 /// If the signer is the token owner, they can burn their own tokens.
 /// If the signer is the burner role, they can burn from any account (requires permanent delegate).
-pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<Burn>, amount: u64) -> Result<()> {
     let config = &ctx.accounts.config;
     require!(!config.paused, StablecoinError::Paused);
     require_keys_eq!(
@@ -24,7 +26,7 @@ pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
 
     if signer == account_owner {
         // Self-burn
-        let cpi_accounts = Burn {
+        let cpi_accounts = TokenBurn {
             mint: ctx.accounts.mint.to_account_info(),
             from: ctx.accounts.from.to_account_info(),
             authority: ctx.accounts.authority.to_account_info(),
@@ -45,7 +47,7 @@ pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
         let config_seeds: &[&[u8]] = &[CONFIG_SEED, mint_key.as_ref(), &[config.bump]];
         let signer_seeds: &[&[&[u8]]] = &[config_seeds];
 
-        let cpi_accounts = Burn {
+        let cpi_accounts = TokenBurn {
             mint: ctx.accounts.mint.to_account_info(),
             from: ctx.accounts.from.to_account_info(),
             authority: ctx.accounts.config.to_account_info(),
@@ -75,7 +77,7 @@ fn is_burner(config: &StablecoinConfig, signer: &Pubkey) -> bool {
 }
 
 #[derive(Accounts)]
-pub struct BurnTokens<'info> {
+pub struct Burn<'info> {
     pub authority: Signer<'info>,
 
     #[account(
@@ -86,7 +88,7 @@ pub struct BurnTokens<'info> {
     pub config: Account<'info, StablecoinConfig>,
 
     #[account(mut)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub mint: InterfaceAccount<'info, TokenMint>,
 
     #[account(mut)]
     pub from: InterfaceAccount<'info, TokenAccount>,

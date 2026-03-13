@@ -43,34 +43,34 @@ pub mod sss_stablecoin {
     }
 
     /// Mint new tokens to a recipient
-    pub fn mint(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
+    pub fn mint(ctx: Context<Mint>, amount: u64) -> Result<()> {
         instructions::mint::handler(ctx, amount)
     }
 
     /// Burn tokens from an account
-    pub fn burn(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
+    pub fn burn(ctx: Context<Burn>, amount: u64) -> Result<()> {
         instructions::burn::handler(ctx, amount)
     }
 
     // ============ Pause Control Instructions ============
 
     /// Freeze a token account
-    pub fn freeze_account(ctx: Context<FreezeThaw>, target: Pubkey) -> Result<()> {
+    pub fn freeze_account(ctx: Context<FreezeAccount>, target: Pubkey) -> Result<()> {
         instructions::freeze_thaw::freeze_handler(ctx, target)
     }
 
     /// Thaw (unfreeze) a token account
-    pub fn thaw_account(ctx: Context<FreezeThaw>, target: Pubkey) -> Result<()> {
+    pub fn thaw_account(ctx: Context<ThawAccount>, target: Pubkey) -> Result<()> {
         instructions::freeze_thaw::thaw_handler(ctx, target)
     }
 
     /// Pause all operations
-    pub fn pause(ctx: Context<AdminAction>) -> Result<()> {
+    pub fn pause(ctx: Context<Pause>) -> Result<()> {
         instructions::pause::pause_handler(ctx)
     }
 
     /// Unpause operations
-    pub fn unpause(ctx: Context<AdminAction>) -> Result<()> {
+    pub fn unpause(ctx: Context<Unpause>) -> Result<()> {
         instructions::pause::unpause_handler(ctx)
     }
 
@@ -94,12 +94,12 @@ pub mod sss_stablecoin {
     // ============ SSS-2 Compliance Instructions ============
 
     /// Add a wallet to the blacklist (SSS-2 only)
-    pub fn add_to_blacklist(ctx: Context<UpsertComplianceRecord>, reason: String) -> Result<()> {
+    pub fn add_to_blacklist(ctx: Context<AddToBlacklist>, reason: String) -> Result<()> {
         instructions::blacklist::add_handler(ctx, reason)
     }
 
     /// Remove a wallet from the blacklist (SSS-2 only)
-    pub fn remove_from_blacklist(ctx: Context<UpsertComplianceRecord>) -> Result<()> {
+    pub fn remove_from_blacklist(ctx: Context<RemoveFromBlacklist>) -> Result<()> {
         instructions::blacklist::remove_handler(ctx)
     }
 

@@ -7,10 +7,12 @@ use crate::{
     state::StablecoinConfig,
 };
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{freeze_account, thaw_account, Mint, Token2022, TokenAccount};
+use anchor_spl::token_interface::{
+    freeze_account, thaw_account, Mint as TokenMint, Token2022, TokenAccount,
+};
 
 /// Freeze a token account
-pub fn freeze_handler(ctx: Context<FreezeThaw>, target: Pubkey) -> Result<()> {
+pub fn freeze_handler(ctx: Context<FreezeAccount>, target: Pubkey) -> Result<()> {
     let config = &ctx.accounts.config;
     require!(!config.paused, StablecoinError::Paused);
     require!(
@@ -48,7 +50,7 @@ pub fn freeze_handler(ctx: Context<FreezeThaw>, target: Pubkey) -> Result<()> {
 }
 
 /// Thaw (unfreeze) a token account
-pub fn thaw_handler(ctx: Context<FreezeThaw>, target: Pubkey) -> Result<()> {
+pub fn thaw_handler(ctx: Context<ThawAccount>, target: Pubkey) -> Result<()> {
     let config = &ctx.accounts.config;
     require!(
         is_pauser(config, &ctx.accounts.authority.key()),
@@ -89,7 +91,7 @@ fn is_pauser(config: &StablecoinConfig, signer: &Pubkey) -> bool {
 }
 
 #[derive(Accounts)]
-pub struct FreezeThaw<'info> {
+pub struct FreezeAccount<'info> {
     pub authority: Signer<'info>,
 
     #[account(
@@ -99,7 +101,26 @@ pub struct FreezeThaw<'info> {
     )]
     pub config: Account<'info, StablecoinConfig>,
 
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub mint: InterfaceAccount<'info, TokenMint>,
+
+    #[account(mut)]
+    pub token_account: InterfaceAccount<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
+pub struct ThawAccount<'info> {
+    pub authority: Signer<'info>,
+
+    #[account(
+        seeds = [CONFIG_SEED, mint.key().as_ref()],
+        bump = config.bump,
+        has_one = mint @ StablecoinError::InvalidMint
+    )]
+    pub config: Account<'info, StablecoinConfig>,
+
+    pub mint: InterfaceAccount<'info, TokenMint>,
 
     #[account(mut)]
     pub token_account: InterfaceAccount<'info, TokenAccount>,

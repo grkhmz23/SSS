@@ -9,7 +9,7 @@ use crate::{
 use anchor_lang::prelude::*;
 
 /// Pause all operations
-pub fn pause_handler(ctx: Context<AdminAction>) -> Result<()> {
+pub fn pause_handler(ctx: Context<Pause>) -> Result<()> {
     let config = &mut ctx.accounts.config;
     require!(
         is_pauser(config, &ctx.accounts.authority.key()),
@@ -26,7 +26,7 @@ pub fn pause_handler(ctx: Context<AdminAction>) -> Result<()> {
 }
 
 /// Unpause operations
-pub fn unpause_handler(ctx: Context<AdminAction>) -> Result<()> {
+pub fn unpause_handler(ctx: Context<Unpause>) -> Result<()> {
     let config = &mut ctx.accounts.config;
     require!(
         is_pauser(config, &ctx.accounts.authority.key()),
@@ -47,7 +47,23 @@ fn is_pauser(config: &StablecoinConfig, signer: &Pubkey) -> bool {
 }
 
 #[derive(Accounts)]
-pub struct AdminAction<'info> {
+pub struct Pause<'info> {
+    pub authority: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [CONFIG_SEED, mint.key().as_ref()],
+        bump = config.bump,
+        has_one = mint @ StablecoinError::InvalidMint
+    )]
+    pub config: Account<'info, StablecoinConfig>,
+
+    /// CHECK: only used for PDA seed relation.
+    pub mint: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct Unpause<'info> {
     pub authority: Signer<'info>,
 
     #[account(

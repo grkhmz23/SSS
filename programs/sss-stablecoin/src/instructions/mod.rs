@@ -12,12 +12,12 @@ pub mod update_minter;
 pub mod update_roles;
 
 // Re-export common context types that might be needed elsewhere
-pub use blacklist::UpsertComplianceRecord;
-pub use burn::BurnTokens;
-pub use freeze_thaw::FreezeThaw;
+pub use blacklist::{AddToBlacklist, RemoveFromBlacklist};
+pub use burn::Burn;
+pub use freeze_thaw::{FreezeAccount, ThawAccount};
 pub use initialize::{Initialize, InitializeArgs, RoleConfiguration};
-pub use mint::MintTokens;
-pub use pause::AdminAction;
+pub use mint::Mint;
+pub use pause::{Pause, Unpause};
 pub use seize::{Seize, SeizeArgs};
 pub use transfer_authority::TransferAuthority;
 pub use update_minter::{UpdateMinter, UpdateMinterArgs};
