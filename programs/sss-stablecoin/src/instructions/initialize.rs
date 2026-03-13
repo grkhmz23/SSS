@@ -8,7 +8,10 @@ use crate::{
 };
 use anchor_lang::{
     prelude::*,
-    solana_program::{program::invoke, system_instruction},
+    solana_program::{
+        program::{invoke, invoke_signed},
+        system_instruction,
+    },
 };
 use anchor_spl::token_2022::Token2022;
 use spl_token_2022::{
@@ -115,6 +118,8 @@ fn validate_preset(args: &InitializeArgs) -> Result<()> {
 fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> Result<()> {
     let mint_key = ctx.accounts.mint.key();
     let config_key = ctx.accounts.config.key();
+    let config_signer_seeds: &[&[u8]] =
+        &[CONFIG_SEED, mint_key.as_ref(), &[ctx.accounts.config.bump]];
 
     let mut extensions = vec![ExtensionType::MetadataPointer];
     if args.enable_permanent_delegate {
@@ -202,7 +207,7 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
         &[ctx.accounts.mint.to_account_info()],
     )?;
 
-    invoke(
+    invoke_signed(
         &token_metadata_instruction::initialize(
             &ctx.accounts.token_program.key(),
             &mint_key,
@@ -217,8 +222,9 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
             ctx.accounts.mint.to_account_info(),
             ctx.accounts.config.to_account_info(),
             ctx.accounts.mint.to_account_info(),
-            ctx.accounts.authority.to_account_info(),
+            ctx.accounts.config.to_account_info(),
         ],
+        &[config_signer_seeds],
     )?;
 
     Ok(())
