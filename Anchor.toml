@@ -3,12 +3,12 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-sss_stablecoin = "Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb"
-sss_transfer_hook = "BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo"
+sss_stablecoin = "5C7LHvieTag3oioHsni4SgTVDeCYMLTchix5obimXkEL"
+sss_transfer_hook = "CHfiQPpbATb9qDbYMA8sRKPxRu3sYHdMW4s4JG4xJt1H"
 
 [programs.devnet]
-sss_stablecoin = "Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb"
-sss_transfer_hook = "BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo"
+sss_stablecoin = "5C7LHvieTag3oioHsni4SgTVDeCYMLTchix5obimXkEL"
+sss_transfer_hook = "CHfiQPpbATb9qDbYMA8sRKPxRu3sYHdMW4s4JG4xJt1H"
 
 [registry]
 url = "https://api.apr.dev"

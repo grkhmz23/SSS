@@ -8,10 +8,11 @@ import {
 } from '@solana/spl-token';
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { describe, expect, it } from 'vitest';
+import { finalizeCreation } from '../helpers/stablecoin';
 
 const shouldRun = process.env.RUN_ANCHOR_TESTS === '1';
 const itIf = shouldRun ? it : it.skip;
-const HOOK_PROGRAM_ID = new PublicKey('BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo');
+const HOOK_PROGRAM_ID = new PublicKey('CHfiQPpbATb9qDbYMA8sRKPxRu3sYHdMW4s4JG4xJt1H');
 
 function providerPayer(provider: anchor.AnchorProvider): Keypair {
   const walletWithPayer = provider.wallet as anchor.Wallet & { payer?: Keypair };
@@ -27,6 +28,7 @@ describe('SSS-2 flow', () => {
     anchor.setProvider(provider);
 
     const stablecoin = anchor.workspace.SssStablecoin as anchor.Program;
+    const transferHook = anchor.workspace.SssTransferHook as anchor.Program;
 
     const authority = providerPayer(provider);
     const mint = Keypair.generate();
@@ -38,6 +40,14 @@ describe('SSS-2 flow', () => {
     const [masterMinterRole] = PublicKey.findProgramAddressSync(
       [Buffer.from('minter'), config.toBuffer(), authority.publicKey.toBuffer()],
       stablecoin.programId,
+    );
+    const [hookConfig] = PublicKey.findProgramAddressSync(
+      [Buffer.from('hook-config'), mint.publicKey.toBuffer()],
+      transferHook.programId,
+    );
+    const [extraAccountMetaList] = PublicKey.findProgramAddressSync(
+      [Buffer.from('extra-account-metas'), mint.publicKey.toBuffer()],
+      transferHook.programId,
     );
 
     const treasuryOwner = Keypair.generate();
@@ -81,6 +91,33 @@ describe('SSS-2 flow', () => {
         systemProgram: SystemProgram.programId,
       })
       .signers([mint])
+      .rpc();
+    await finalizeCreation({ provider, stablecoin, authority, mint, config });
+
+    await transferHook.methods
+      .initializeHook({
+        stablecoinProgram: stablecoin.programId,
+        stablecoinConfig: config,
+        treasuryTokenAccount: treasuryAta,
+        enforcePause: true,
+      })
+      .accounts({
+        payer: authority.publicKey,
+        hookConfig,
+        mint: mint.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
+
+    await transferHook.methods
+      .initializeExtraAccountMetaList()
+      .accounts({
+        payer: authority.publicKey,
+        hookConfig,
+        extraAccountMetaList,
+        mint: mint.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
       .rpc();
 
     const userA = Keypair.generate();
@@ -134,6 +171,10 @@ describe('SSS-2 flow', () => {
       [Buffer.from('compliance'), mint.publicKey.toBuffer(), userA.publicKey.toBuffer()],
       stablecoin.programId,
     );
+    const [treasuryCompliance] = PublicKey.findProgramAddressSync(
+      [Buffer.from('compliance'), mint.publicKey.toBuffer(), treasuryOwner.publicKey.toBuffer()],
+      stablecoin.programId,
+    );
 
     await stablecoin.methods
       .mint(new anchor.BN(2_000_000))
@@ -176,7 +217,7 @@ describe('SSS-2 flow', () => {
       ),
     ).rejects.toThrowError();
 
-    await stablecoin.methods
+    const seizeSignature = await stablecoin.methods
       .seize({ amount: new anchor.BN(250_000), overrideRequiresBlacklist: false })
       .accounts({
         authority: authority.publicKey,
@@ -185,9 +226,15 @@ describe('SSS-2 flow', () => {
         source: userAAta,
         destination: treasuryAta,
         sourceComplianceRecord: userACompliance,
+        destinationComplianceRecord: treasuryCompliance,
+        transferHookProgram: transferHook.programId,
+        extraAccountMetaList,
+        hookConfig,
+        stablecoinProgram: stablecoin.programId,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .rpc();
+    await provider.connection.confirmTransaction(seizeSignature, 'confirmed');
 
     const sourceBalance = await getAccount(
       provider.connection,

@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "sss-token": "dist/index.js"
+    "sss-token": "dist/index.cjs"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",

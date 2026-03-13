@@ -13,9 +13,11 @@ import {
 } from '@solana/spl-token';
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { describe, expect, it } from 'vitest';
+import { finalizeCreation } from '../helpers/stablecoin';
 
 const shouldRun = process.env.RUN_ANCHOR_TESTS === '1';
 const itIf = shouldRun ? it : it.skip;
+const HOOK_PROGRAM_ID = new PublicKey('CHfiQPpbATb9qDbYMA8sRKPxRu3sYHdMW4s4JG4xJt1H');
 
 function providerPayer(provider: anchor.AnchorProvider): Keypair {
   const walletWithPayer = provider.wallet as anchor.Wallet & { payer?: Keypair };
@@ -25,12 +27,67 @@ function providerPayer(provider: anchor.AnchorProvider): Keypair {
   return walletWithPayer.payer;
 }
 
+function deriveHookAccounts(mint: Keypair, programId: PublicKey) {
+  const [hookConfig] = PublicKey.findProgramAddressSync(
+    [Buffer.from('hook-config'), mint.publicKey.toBuffer()],
+    programId,
+  );
+  const [extraAccountMetaList] = PublicKey.findProgramAddressSync(
+    [Buffer.from('extra-account-metas'), mint.publicKey.toBuffer()],
+    programId,
+  );
+  return { hookConfig, extraAccountMetaList };
+}
+
+async function initializeHook(params: {
+  authority: Keypair;
+  mint: Keypair;
+  config: PublicKey;
+  treasuryAta: PublicKey;
+  transferHook: anchor.Program;
+  stablecoinProgramId: PublicKey;
+}) {
+  const { hookConfig, extraAccountMetaList } = deriveHookAccounts(
+    params.mint,
+    params.transferHook.programId,
+  );
+
+  await params.transferHook.methods
+    .initializeHook({
+      stablecoinProgram: params.stablecoinProgramId,
+      stablecoinConfig: params.config,
+      treasuryTokenAccount: params.treasuryAta,
+      enforcePause: true,
+    })
+    .accounts({
+      payer: params.authority.publicKey,
+      hookConfig,
+      mint: params.mint.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  await params.transferHook.methods
+    .initializeExtraAccountMetaList()
+    .accounts({
+      payer: params.authority.publicKey,
+      hookConfig,
+      extraAccountMetaList,
+      mint: params.mint.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return { hookConfig, extraAccountMetaList };
+}
+
 describe('Role Permissions Matrix', () => {
   describe('Master Authority', () => {
     itIf('can perform all operations', async () => {
       const provider = anchor.AnchorProvider.env();
       anchor.setProvider(provider);
       const stablecoin = anchor.workspace.SssStablecoin as anchor.Program;
+      const transferHook = anchor.workspace.SssTransferHook as anchor.Program;
       const master = providerPayer(provider);
       const mint = Keypair.generate();
 
@@ -78,6 +135,7 @@ describe('Role Permissions Matrix', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: master, mint, config });
 
       // Master can pause
       await stablecoin.methods
@@ -160,6 +218,7 @@ describe('Role Permissions Matrix', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: master, mint, config });
 
       await provider.connection.requestAirdrop(pauser.publicKey, 1_000_000_000);
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -223,6 +282,7 @@ describe('Role Permissions Matrix', () => {
       const provider = anchor.AnchorProvider.env();
       anchor.setProvider(provider);
       const stablecoin = anchor.workspace.SssStablecoin as anchor.Program;
+      const transferHook = anchor.workspace.SssTransferHook as anchor.Program;
       const master = providerPayer(provider);
       const mint = Keypair.generate();
 
@@ -257,7 +317,7 @@ describe('Role Permissions Matrix', () => {
           enableTransferHook: true,
           defaultAccountFrozen: false,
           seizeRequiresBlacklist: true,
-          transferHookProgram: new PublicKey('BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo'),
+          transferHookProgram: HOOK_PROGRAM_ID,
           roles: {
             pauser: null,
             burner: burner.publicKey,
@@ -279,8 +339,21 @@ describe('Role Permissions Matrix', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: master, mint, config });
+      await initializeHook({
+        authority: master,
+        mint,
+        config,
+        treasuryAta,
+        transferHook,
+        stablecoinProgramId: stablecoin.programId,
+      });
 
       const user = Keypair.generate();
+      const [userComplianceRecord] = PublicKey.findProgramAddressSync(
+        [Buffer.from('compliance'), mint.publicKey.toBuffer(), user.publicKey.toBuffer()],
+        stablecoin.programId,
+      );
       const userAta = getAssociatedTokenAddressSync(
         mint.publicKey,
         user.publicKey,
@@ -320,7 +393,7 @@ describe('Role Permissions Matrix', () => {
           mint: mint.publicKey,
           recipient: userAta,
           minterRole: masterMinterRole,
-          recipientComplianceRecord: PublicKey.default,
+          recipientComplianceRecord: userComplianceRecord,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .rpc();
@@ -329,7 +402,7 @@ describe('Role Permissions Matrix', () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Burner can burn from user account
-      await stablecoin.methods
+      const burnSignature = await stablecoin.methods
         .burn(new anchor.BN(5_000))
         .accounts({
           authority: burner.publicKey,
@@ -340,6 +413,7 @@ describe('Role Permissions Matrix', () => {
         })
         .signers([burner])
         .rpc();
+      await provider.connection.confirmTransaction(burnSignature, 'confirmed');
 
       // Verify balance
       const account = await getAccount(provider.connection, userAta, 'confirmed', TOKEN_2022_PROGRAM_ID);
@@ -352,6 +426,7 @@ describe('Role Permissions Matrix', () => {
       const provider = anchor.AnchorProvider.env();
       anchor.setProvider(provider);
       const stablecoin = anchor.workspace.SssStablecoin as anchor.Program;
+      const transferHook = anchor.workspace.SssTransferHook as anchor.Program;
       const master = providerPayer(provider);
       const mint = Keypair.generate();
 
@@ -384,7 +459,7 @@ describe('Role Permissions Matrix', () => {
           enableTransferHook: true,
           defaultAccountFrozen: false,
           seizeRequiresBlacklist: true,
-          transferHookProgram: new PublicKey('BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo'),
+          transferHookProgram: HOOK_PROGRAM_ID,
           roles: {
             pauser: null,
             burner: null,
@@ -406,6 +481,7 @@ describe('Role Permissions Matrix', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: master, mint, config });
 
       const targetUser = Keypair.generate();
       const [complianceRecord] = PublicKey.findProgramAddressSync(
@@ -451,6 +527,7 @@ describe('Role Permissions Matrix', () => {
       const provider = anchor.AnchorProvider.env();
       anchor.setProvider(provider);
       const stablecoin = anchor.workspace.SssStablecoin as anchor.Program;
+      const transferHook = anchor.workspace.SssTransferHook as anchor.Program;
       const master = providerPayer(provider);
       const mint = Keypair.generate();
 
@@ -484,7 +561,7 @@ describe('Role Permissions Matrix', () => {
           enableTransferHook: true,
           defaultAccountFrozen: false,
           seizeRequiresBlacklist: true,
-          transferHookProgram: new PublicKey('BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo'),
+          transferHookProgram: HOOK_PROGRAM_ID,
           roles: {
             pauser: null,
             burner: null,
@@ -506,6 +583,15 @@ describe('Role Permissions Matrix', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: master, mint, config });
+      const { hookConfig, extraAccountMetaList } = await initializeHook({
+        authority: master,
+        mint,
+        config,
+        treasuryAta,
+        transferHook,
+        stablecoinProgramId: stablecoin.programId,
+      });
 
       const targetUser = Keypair.generate();
       const targetAta = getAssociatedTokenAddressSync(
@@ -516,6 +602,10 @@ describe('Role Permissions Matrix', () => {
       );
       const [complianceRecord] = PublicKey.findProgramAddressSync(
         [Buffer.from('compliance'), mint.publicKey.toBuffer(), targetUser.publicKey.toBuffer()],
+        stablecoin.programId,
+      );
+      const [treasuryComplianceRecord] = PublicKey.findProgramAddressSync(
+        [Buffer.from('compliance'), mint.publicKey.toBuffer(), treasuryOwner.publicKey.toBuffer()],
         stablecoin.programId,
       );
 
@@ -551,7 +641,7 @@ describe('Role Permissions Matrix', () => {
           mint: mint.publicKey,
           recipient: targetAta,
           minterRole: masterMinterRole,
-          recipientComplianceRecord: PublicKey.default,
+          recipientComplianceRecord: complianceRecord,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .rpc();
@@ -573,7 +663,7 @@ describe('Role Permissions Matrix', () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Seizer can seize tokens
-      await stablecoin.methods
+      const seizeSignature = await stablecoin.methods
         .seize({ amount: new anchor.BN(5_000), overrideRequiresBlacklist: false })
         .accounts({
           authority: seizer.publicKey,
@@ -582,10 +672,16 @@ describe('Role Permissions Matrix', () => {
           source: targetAta,
           destination: treasuryAta,
           sourceComplianceRecord: complianceRecord,
+          destinationComplianceRecord: treasuryComplianceRecord,
+          transferHookProgram: transferHook.programId,
+          extraAccountMetaList,
+          hookConfig,
+          stablecoinProgram: stablecoin.programId,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers([seizer])
         .rpc();
+      await provider.connection.confirmTransaction(seizeSignature, 'confirmed');
 
       // Verify balance
       const targetAccount = await getAccount(provider.connection, targetAta, 'confirmed', TOKEN_2022_PROGRAM_ID);

@@ -1,0 +1,21 @@
+export function shortAddress(value: string | null | undefined, chars = 4): string {
+  if (!value) {
+    return 'Not connected';
+  }
+  if (value.length <= chars * 2) {
+    return value;
+  }
+  return `${value.slice(0, chars)}...${value.slice(-chars)}`;
+}
+
+export function formatBigint(value: bigint | number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return '0';
+  }
+  const numeric = typeof value === 'bigint' ? Number(value) : value;
+  return Number.isFinite(numeric) ? numeric.toLocaleString() : String(value);
+}
+
+export function formatDate(value: Date): string {
+  return value.toLocaleString();
+}

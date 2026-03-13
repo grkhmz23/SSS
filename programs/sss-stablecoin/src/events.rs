@@ -14,6 +14,14 @@ pub struct Initialized {
     pub permanent_delegate_enabled: bool,
 }
 
+/// Emitted when mint/freeze control is handed to the config PDA
+#[event]
+pub struct CreationFinalized {
+    pub mint: Pubkey,
+    pub config: Pubkey,
+    pub authority: Pubkey,
+}
+
 /// Emitted when tokens are minted
 #[event]
 pub struct Minted {

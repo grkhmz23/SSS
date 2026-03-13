@@ -5,8 +5,10 @@ This directory contains the operator and developer docs for the Solana Stablecoi
 ## Start here
 
 - `../README.md` for repository overview and setup.
+- `SUBMISSION.md` for the current submission/verification status.
 - `ARCHITECTURE.md` for component boundaries and data flows.
 - `OPERATIONS.md` for day-2 runbook and incident playbooks.
+- `DEPLOYMENT.md` for real devnet program IDs and smoke-test proof.
 
 ## Standards
 

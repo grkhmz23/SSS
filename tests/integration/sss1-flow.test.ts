@@ -8,19 +8,11 @@ import {
 } from '@solana/spl-token';
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { describe, expect, it } from 'vitest';
+import { finalizeCreation, providerPayer } from '../helpers/stablecoin';
+const HOOK_PROGRAM_ID = new PublicKey('CHfiQPpbATb9qDbYMA8sRKPxRu3sYHdMW4s4JG4xJt1H');
 
 const shouldRun = process.env.RUN_ANCHOR_TESTS === '1';
 const itIf = shouldRun ? it : it.skip;
-const HOOK_PROGRAM_ID = new PublicKey('BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo');
-
-function providerPayer(provider: anchor.AnchorProvider): Keypair {
-  const walletWithPayer = provider.wallet as anchor.Wallet & { payer?: Keypair };
-  if (!walletWithPayer.payer) {
-    throw new Error('Provider wallet does not expose payer keypair');
-  }
-  return walletWithPayer.payer;
-}
-
 describe('SSS-1 flow', () => {
   itIf('init -> mint -> transfer -> freeze -> thaw', async () => {
     const provider = anchor.AnchorProvider.env();
@@ -48,7 +40,7 @@ describe('SSS-1 flow', () => {
       TOKEN_2022_PROGRAM_ID,
     );
 
-    await stablecoin.methods
+    const initializeSignature = await stablecoin.methods
       .initialize({
         name: 'SSS One',
         symbol: 'SS1',
@@ -82,6 +74,8 @@ describe('SSS-1 flow', () => {
       })
       .signers([mint])
       .rpc();
+    await provider.connection.confirmTransaction(initializeSignature, 'confirmed');
+    await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
     const userA = Keypair.generate();
     const userB = Keypair.generate();
@@ -126,7 +120,7 @@ describe('SSS-1 flow', () => {
       stablecoin.programId,
     );
 
-    await stablecoin.methods
+    const mintSignature = await stablecoin.methods
       .mint(new anchor.BN(1_000_000))
       .accounts({
         authority: authority.publicKey,
@@ -138,6 +132,7 @@ describe('SSS-1 flow', () => {
         tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .rpc();
+    await provider.connection.confirmTransaction(mintSignature, 'confirmed');
 
     await transferChecked(
       provider.connection,

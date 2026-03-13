@@ -12,6 +12,7 @@ import {
 } from '@solana/spl-token';
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { describe, expect, it } from 'vitest';
+import { finalizeCreation } from '../helpers/stablecoin';
 
 const shouldRun = process.env.RUN_ANCHOR_TESTS === '1';
 const itIf = shouldRun ? it : it.skip;
@@ -76,6 +77,7 @@ describe('Pause Control', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const user = Keypair.generate();
       const userAta = getAssociatedTokenAddressSync(
@@ -193,6 +195,7 @@ describe('Pause Control', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const user = Keypair.generate();
       const userAta = getAssociatedTokenAddressSync(
@@ -304,6 +307,7 @@ describe('Pause Control', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const user = Keypair.generate();
       const userAta = getAssociatedTokenAddressSync(
@@ -409,6 +413,7 @@ describe('Pause Control', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const user = Keypair.generate();
       const userAta = getAssociatedTokenAddressSync(

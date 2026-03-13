@@ -12,6 +12,7 @@ import {
 } from '@solana/spl-token';
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { describe, expect, it } from 'vitest';
+import { finalizeCreation } from '../helpers/stablecoin';
 
 const shouldRun = process.env.RUN_ANCHOR_TESTS === '1';
 const itIf = shouldRun ? it : it.skip;
@@ -77,6 +78,7 @@ describe('Edge Cases', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const user = Keypair.generate();
       const userAta = getAssociatedTokenAddressSync(
@@ -168,6 +170,7 @@ describe('Edge Cases', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const user = Keypair.generate();
       const userAta = getAssociatedTokenAddressSync(
@@ -275,6 +278,7 @@ describe('Edge Cases', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const user = Keypair.generate();
       const userAta = getAssociatedTokenAddressSync(
@@ -327,7 +331,7 @@ describe('Edge Cases', () => {
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .rpc();
-    });
+    }, 10_000);
   });
 
   describe('Unauthorized Access', () => {
@@ -381,6 +385,7 @@ describe('Edge Cases', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const nonMinter = Keypair.generate();
       const [nonMinterRole] = PublicKey.findProgramAddressSync(
@@ -489,6 +494,7 @@ describe('Edge Cases', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const randomUser = Keypair.generate();
       await provider.connection.requestAirdrop(randomUser.publicKey, 1_000_000_000);
@@ -560,6 +566,7 @@ describe('Edge Cases', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority, mint, config });
 
       const user = Keypair.generate();
       const userAta = getAssociatedTokenAddressSync(

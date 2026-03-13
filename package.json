@@ -11,7 +11,9 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "anchor:build": "anchor build",
-    "anchor:test": "anchor test"
+    "anchor:test": "anchor test",
+    "frontend:dev": "pnpm --filter @stbr/sss-frontend dev",
+    "frontend:build": "pnpm --filter @stbr/sss-frontend build"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

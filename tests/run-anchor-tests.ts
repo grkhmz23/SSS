@@ -8,5 +8,9 @@ const repoRoot = path.resolve(__dirname, '..');
 
 execSync('pnpm exec vitest run tests/integration', {
   cwd: repoRoot,
+  env: {
+    ...process.env,
+    RUN_ANCHOR_TESTS: process.env.RUN_ANCHOR_TESTS ?? '1',
+  },
   stdio: 'inherit',
 });

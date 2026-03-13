@@ -9,12 +9,11 @@ use crate::{
 use anchor_lang::{
     prelude::*,
     solana_program::{
-        program::{invoke, invoke_signed},
+        program::invoke,
         system_instruction,
     },
 };
 use anchor_spl::token_2022::Token2022;
-use spl_pod::optional_keys::OptionalNonZeroPubkey;
 use spl_token_2022::{
     extension::{
         default_account_state::instruction as default_account_state_instruction,
@@ -23,9 +22,6 @@ use spl_token_2022::{
     },
     instruction as token_2022_instruction,
     state::AccountState,
-};
-use spl_token_metadata_interface::{
-    instruction as token_metadata_instruction, state::TokenMetadata,
 };
 
 /// Initialize a new stablecoin with specified configuration
@@ -38,6 +34,9 @@ pub fn handler(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
     config.mint = ctx.accounts.mint.key();
     config.preset = args.preset as u8;
     config.decimals = args.decimals;
+    config.name = args.name.clone();
+    config.symbol = args.symbol.clone();
+    config.uri = args.uri.clone();
     config.master_authority = ctx.accounts.authority.key();
     config.pauser = args.roles.pauser.unwrap_or(ctx.accounts.authority.key());
     config.burner = args.roles.burner.unwrap_or(ctx.accounts.authority.key());
@@ -78,7 +77,7 @@ pub fn handler(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
     Ok(())
 }
 
-fn validate_preset(args: &InitializeArgs) -> Result<()> {
+pub(crate) fn validate_preset(args: &InitializeArgs) -> Result<()> {
     match args.preset {
         Preset::Sss1 => {
             require!(
@@ -121,7 +120,6 @@ fn validate_preset(args: &InitializeArgs) -> Result<()> {
 fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> Result<()> {
     let mint_key = ctx.accounts.mint.key();
     let config_key = ctx.accounts.config.key();
-    let config_signer_seeds: &[&[u8]] = &[CONFIG_SEED, mint_key.as_ref(), &[ctx.bumps.config]];
 
     let mut extensions = vec![ExtensionType::MetadataPointer];
     if args.enable_permanent_delegate {
@@ -137,29 +135,14 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
     let mint_len =
         ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&extensions)
             .map_err(|_| error!(StablecoinError::MintSizingFailed))?;
-    let metadata = TokenMetadata {
-        update_authority: OptionalNonZeroPubkey::try_from(Some(config_key))
-            .map_err(|_| error!(StablecoinError::MintSizingFailed))?,
-        mint: mint_key,
-        name: args.name.clone(),
-        symbol: args.symbol.clone(),
-        uri: args.uri.clone(),
-        additional_metadata: vec![],
-    };
-    let metadata_len = metadata
-        .tlv_size_of()
-        .map_err(|_| error!(StablecoinError::MintSizingFailed))?;
-    let total_mint_len = mint_len
-        .checked_add(metadata_len)
-        .ok_or_else(|| error!(StablecoinError::MintSizingFailed))?;
-    let lamports = Rent::get()?.minimum_balance(total_mint_len);
+    let required_lamports = Rent::get()?.minimum_balance(mint_len);
 
     invoke(
         &system_instruction::create_account(
             &ctx.accounts.payer.key(),
             &mint_key,
-            lamports,
-            total_mint_len as u64,
+            required_lamports,
+            mint_len as u64,
             &ctx.accounts.token_program.key(),
         ),
         &[
@@ -173,8 +156,8 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
         &metadata_pointer_instruction::initialize(
             &ctx.accounts.token_program.key(),
             &mint_key,
+            Some(ctx.accounts.authority.key()),
             Some(config_key),
-            Some(mint_key),
         )?,
         &[ctx.accounts.mint.to_account_info()],
     )?;
@@ -217,31 +200,11 @@ fn create_token_2022_mint(ctx: &Context<Initialize>, args: &InitializeArgs) -> R
         &token_2022_instruction::initialize_mint2(
             &ctx.accounts.token_program.key(),
             &mint_key,
-            &config_key,
-            Some(&config_key),
+            &ctx.accounts.authority.key(),
+            Some(&ctx.accounts.authority.key()),
             args.decimals,
         )?,
         &[ctx.accounts.mint.to_account_info()],
-    )?;
-
-    invoke_signed(
-        &token_metadata_instruction::initialize(
-            &ctx.accounts.token_program.key(),
-            &mint_key,
-            &config_key,
-            &mint_key,
-            &config_key,
-            args.name.clone(),
-            args.symbol.clone(),
-            args.uri.clone(),
-        ),
-        &[
-            ctx.accounts.mint.to_account_info(),
-            ctx.accounts.config.to_account_info(),
-            ctx.accounts.mint.to_account_info(),
-            ctx.accounts.config.to_account_info(),
-        ],
-        &[config_signer_seeds],
     )?;
 
     Ok(())

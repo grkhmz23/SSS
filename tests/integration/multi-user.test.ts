@@ -13,6 +13,7 @@ import {
 } from '@solana/spl-token';
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { describe, expect, it } from 'vitest';
+import { finalizeCreation } from '../helpers/stablecoin';
 
 const shouldRun = process.env.RUN_ANCHOR_TESTS === '1';
 const itIf = shouldRun ? it : it.skip;
@@ -77,6 +78,7 @@ describe('Multi-User Scenarios', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: master, mint, config });
 
       // Create additional minter
       const minter2 = Keypair.generate();
@@ -132,7 +134,7 @@ describe('Multi-User Scenarios', () => {
       );
 
       // Exhaust master quota
-      await stablecoin.methods
+      const masterMintSignature = await stablecoin.methods
         .mint(new anchor.BN(1_000_000))
         .accounts({
           authority: master.publicKey,
@@ -144,13 +146,18 @@ describe('Multi-User Scenarios', () => {
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .rpc();
+      await provider.connection.confirmTransaction(masterMintSignature, 'confirmed');
 
       // Fund minter2
-      await provider.connection.requestAirdrop(minter2.publicKey, 1_000_000_000);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const latestBlockhash = await provider.connection.getLatestBlockhash();
+      const airdropSignature = await provider.connection.requestAirdrop(minter2.publicKey, 1_000_000_000);
+      await provider.connection.confirmTransaction(
+        { signature: airdropSignature, ...latestBlockhash },
+        'confirmed',
+      );
 
       // Minter2 should still be able to mint (separate quota)
-      await stablecoin.methods
+      const minter2MintSignature = await stablecoin.methods
         .mint(new anchor.BN(minter2Quota))
         .accounts({
           authority: minter2.publicKey,
@@ -163,6 +170,7 @@ describe('Multi-User Scenarios', () => {
         })
         .signers([minter2])
         .rpc();
+      await provider.connection.confirmTransaction(minter2MintSignature, 'confirmed');
 
       // Verify balances
       const balance1 = await getAccount(provider.connection, ata1, 'confirmed', TOKEN_2022_PROGRAM_ID);
@@ -221,6 +229,7 @@ describe('Multi-User Scenarios', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: master, mint, config });
 
       // Create and then disable minter
       const minter = Keypair.generate();
@@ -355,6 +364,7 @@ describe('Multi-User Scenarios', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: master, mint, config });
 
       // Create 5 recipients
       const recipients = Array.from({ length: 5 }, () => Keypair.generate());
@@ -378,7 +388,7 @@ describe('Multi-User Scenarios', () => {
 
       // Mint to each recipient
       for (let i = 0; i < recipients.length; i++) {
-        await stablecoin.methods
+        const signature = await stablecoin.methods
           .mint(new anchor.BN(1000 * (i + 1)))
           .accounts({
             authority: master.publicKey,
@@ -390,6 +400,7 @@ describe('Multi-User Scenarios', () => {
             tokenProgram: TOKEN_2022_PROGRAM_ID,
           })
           .rpc();
+        await provider.connection.confirmTransaction(signature, 'confirmed');
       }
 
       // Verify balances
@@ -451,6 +462,7 @@ describe('Multi-User Scenarios', () => {
         })
         .signers([mint])
         .rpc();
+      await finalizeCreation({ provider, stablecoin, authority: oldMaster, mint, config });
 
       const newMaster = Keypair.generate();
       await provider.connection.requestAirdrop(newMaster.publicKey, 1_000_000_000);

@@ -12,6 +12,12 @@ pub struct StablecoinConfig {
     pub mint: Pubkey,
     pub preset: u8,
     pub decimals: u8,
+    #[max_len(32)]
+    pub name: String,
+    #[max_len(12)]
+    pub symbol: String,
+    #[max_len(200)]
+    pub uri: String,
     pub master_authority: Pubkey,
     pub pauser: Pubkey,
     pub burner: Pubkey,

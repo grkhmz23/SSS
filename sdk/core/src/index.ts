@@ -1,7 +1,15 @@
-import { AnchorProvider, BN, Program } from '@coral-xyz/anchor';
+import { AnchorProvider, BN, Program, type Wallet } from '@coral-xyz/anchor';
 import {
   TOKEN_2022_PROGRAM_ID,
+  AccountState,
+  ExtensionType,
+  createInitializeDefaultAccountStateInstruction,
+  createInitializeMetadataPointerInstruction,
+  createInitializeMint2Instruction,
+  createInitializePermanentDelegateInstruction,
+  createInitializeTransferHookInstruction,
   getAccount,
+  getMintLen,
   getMint,
   type Account as SplTokenAccount,
 } from '@solana/spl-token';
@@ -11,18 +19,20 @@ import {
   PublicKey,
   Signer,
   SystemProgram,
+  Transaction,
   type Commitment,
 } from '@solana/web3.js';
 import { ComplianceDisabledError } from './errors.js';
 import { SSS_STABLECOIN_IDL } from './idl/sssStablecoin.js';
 import { SSS_TRANSFER_HOOK_IDL } from './idl/sssTransferHook.js';
-import { signerWallet } from './internal/wallet.js';
+import { isSigner, normalizeWallet, signAndSendTransaction } from './internal/wallet.js';
 import { PRESET_DEFINITIONS, Presets } from './presets.js';
 import type {
   CreateStablecoinParams,
   RoleConfiguration,
   SeizeInput,
   StablecoinAddresses,
+  TransactionAuthority,
   UpdateMinterInput,
   UpdateRolesInput,
 } from './types.js';
@@ -32,15 +42,15 @@ export * from './errors.js';
 export * from './types.js';
 
 export const DEFAULT_STABLECOIN_PROGRAM_ID = new PublicKey(
-  'Cv2h8n2AeysL1e6VMq9oDdJAqTWdahUAnXQY7n2xjKJb',
+  '5C7LHvieTag3oioHsni4SgTVDeCYMLTchix5obimXkEL',
 );
 export const DEFAULT_TRANSFER_HOOK_PROGRAM_ID = new PublicKey(
-  'BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo',
+  'CHfiQPpbATb9qDbYMA8sRKPxRu3sYHdMW4s4JG4xJt1H',
 );
 
 interface SolanaStablecoinConstructor {
   connection: Connection;
-  payer: Signer;
+  payer: TransactionAuthority;
   stablecoinProgramId: PublicKey;
   transferHookProgramId: PublicKey;
   addresses: StablecoinAddresses;
@@ -63,6 +73,9 @@ export interface StablecoinConfigAccount {
   mint: PublicKey;
   preset: number;
   decimals: number;
+  name: string;
+  symbol: string;
+  uri: string;
   masterAuthority: PublicKey;
   pauser: PublicKey;
   burner: PublicKey;
@@ -80,12 +93,13 @@ export interface StablecoinConfigAccount {
 
 export class SolanaStablecoin {
   public readonly connection: Connection;
-  public readonly payer: Signer;
+  public readonly payer: TransactionAuthority;
   public readonly stablecoinProgramId: PublicKey;
   public readonly transferHookProgramId: PublicKey;
   public readonly addresses: StablecoinAddresses;
 
   private readonly provider: AnchorProvider;
+  private readonly wallet: Wallet;
   private readonly stablecoinProgram: Program;
   private readonly transferHookProgram: Program;
 
@@ -95,10 +109,11 @@ export class SolanaStablecoin {
     this.stablecoinProgramId = input.stablecoinProgramId;
     this.transferHookProgramId = input.transferHookProgramId;
     this.addresses = input.addresses;
+    this.wallet = normalizeWallet(this.payer);
 
     this.provider = new AnchorProvider(
       this.connection,
-      signerWallet(this.payer),
+      this.wallet,
       AnchorProvider.defaultOptions(),
     );
     this.stablecoinProgram = programForId(
@@ -171,12 +186,15 @@ export class SolanaStablecoin {
   ): Promise<SolanaStablecoin> {
     const payer = params.payer;
     const authority = params.authority ?? payer;
+    if (!authority.publicKey.equals(payer.publicKey) && !isSigner(authority)) {
+      throw new Error('Non-payer authorities must be provided as Signers.');
+    }
     const stablecoinProgramId = params.stablecoinProgramId ?? DEFAULT_STABLECOIN_PROGRAM_ID;
     const transferHookProgramId = params.transferHookProgramId ?? DEFAULT_TRANSFER_HOOK_PROGRAM_ID;
 
     const provider = new AnchorProvider(
       connection,
-      signerWallet(payer),
+      normalizeWallet(payer),
       AnchorProvider.defaultOptions(),
     );
     const stablecoinProgram = programForId(SSS_STABLECOIN_IDL, stablecoinProgramId, provider);
@@ -188,11 +206,7 @@ export class SolanaStablecoin {
 
     const mint = Keypair.generate();
     const config = SolanaStablecoin.deriveConfigPda(mint.publicKey, stablecoinProgramId);
-    const masterMinterRole = SolanaStablecoin.deriveMinterRolePda(
-      config,
-      authority.publicKey,
-      stablecoinProgramId,
-    );
+    const masterMinterRole = SolanaStablecoin.deriveMinterRolePda(config, authority.publicKey, stablecoinProgramId);
 
     const presetFlags =
       'preset' in params
@@ -237,18 +251,105 @@ export class SolanaStablecoin {
       initialMinterWindowSeconds: new BN(params.initialMinterWindowSeconds),
     };
 
-    const initBuilder = stablecoinProgram.methods.initialize(initializeArgs).accounts({
-      payer: payer.publicKey,
-      authority: authority.publicKey,
-      config,
-      masterMinterRole,
-      mint: mint.publicKey,
-      tokenProgram: TOKEN_2022_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-    });
+    const extensionTypes = [ExtensionType.MetadataPointer];
+    if (presetFlags.enablePermanentDelegate) {
+      extensionTypes.push(ExtensionType.PermanentDelegate);
+    }
+    if (presetFlags.enableTransferHook) {
+      extensionTypes.push(ExtensionType.TransferHook);
+    }
+    if ('preset' in params ? false : params.extensions.defaultAccountFrozen) {
+      extensionTypes.push(ExtensionType.DefaultAccountState);
+    }
 
-    const initSigners = authority.publicKey.equals(payer.publicKey) ? [mint] : [mint, authority];
-    await initBuilder.signers(initSigners).rpc();
+    const currentMintLen = getMintLen(extensionTypes);
+    const mintRent = await connection.getMinimumBalanceForRentExemption(currentMintLen);
+
+    const mintCreationTransaction = new Transaction().add(
+      SystemProgram.createAccount({
+        fromPubkey: payer.publicKey,
+        newAccountPubkey: mint.publicKey,
+        lamports: mintRent,
+        space: currentMintLen,
+        programId: TOKEN_2022_PROGRAM_ID,
+      }),
+    );
+    mintCreationTransaction.add(
+      createInitializeMetadataPointerInstruction(
+        mint.publicKey,
+        authority.publicKey,
+        config,
+        TOKEN_2022_PROGRAM_ID,
+      ),
+    );
+    if (presetFlags.enablePermanentDelegate) {
+      mintCreationTransaction.add(
+        createInitializePermanentDelegateInstruction(
+          mint.publicKey,
+          config,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+      );
+    }
+    if (presetFlags.enableTransferHook) {
+      mintCreationTransaction.add(
+        createInitializeTransferHookInstruction(
+          mint.publicKey,
+          config,
+          transferHookProgramId,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+      );
+    }
+    if ('preset' in params ? false : params.extensions.defaultAccountFrozen) {
+      mintCreationTransaction.add(
+        createInitializeDefaultAccountStateInstruction(
+          mint.publicKey,
+          AccountState.Frozen,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+      );
+    }
+    mintCreationTransaction.add(
+      createInitializeMint2Instruction(
+        mint.publicKey,
+        params.decimals,
+        authority.publicKey,
+        authority.publicKey,
+        TOKEN_2022_PROGRAM_ID,
+      ),
+    );
+    const createSigners: Signer[] = [mint];
+    if (isSigner(authority) && !authority.publicKey.equals(payer.publicKey)) {
+      createSigners.push(authority);
+    }
+    await signAndSendTransaction(
+      connection,
+      payer,
+      mintCreationTransaction,
+      createSigners,
+      { commitment: 'confirmed' },
+    );
+
+    const initExistingInstruction = await stablecoinProgram.methods
+      .initializeExistingMint(initializeArgs)
+      .accounts({
+        payer: payer.publicKey,
+        authority: authority.publicKey,
+        config,
+        mint: mint.publicKey,
+        masterMinterRole,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .instruction();
+    await signAndSendTransaction(
+      connection,
+      payer,
+      new Transaction().add(initExistingInstruction),
+      isSigner(authority) && !authority.publicKey.equals(payer.publicKey) ? [authority] : [],
+      { commitment: 'confirmed' },
+    );
 
     let transferHookConfig: PublicKey | undefined;
     let extraAccountMetaList: PublicKey | undefined;
@@ -307,7 +408,7 @@ export class SolanaStablecoin {
 
   static fromExisting(input: {
     connection: Connection;
-    payer: Signer;
+    payer: TransactionAuthority;
     mint: PublicKey;
     stablecoinProgramId?: PublicKey;
     transferHookProgramId?: PublicKey;
@@ -362,8 +463,24 @@ export class SolanaStablecoin {
     return mint.supply;
   }
 
+  async getMetadata(): Promise<{
+    name: string;
+    symbol: string;
+    uri: string;
+    updateAuthority: PublicKey | null;
+  } | null> {
+    const config = await this.getConfig();
+
+    return {
+      name: config.name,
+      symbol: config.symbol,
+      uri: config.uri,
+      updateAuthority: config.masterAuthority ?? null,
+    };
+  }
+
   async mint(input: {
-    authority: Signer;
+    authority: TransactionAuthority;
     recipientTokenAccount: PublicKey;
     amount: bigint;
   }): Promise<string> {
@@ -395,7 +512,7 @@ export class SolanaStablecoin {
   }
 
   async burn(input: {
-    authority: Signer;
+    authority: TransactionAuthority;
     fromTokenAccount: PublicKey;
     amount: bigint;
   }): Promise<string> {
@@ -412,7 +529,7 @@ export class SolanaStablecoin {
       .rpc();
   }
 
-  async freeze(input: { authority: Signer; tokenAccount: PublicKey }): Promise<string> {
+  async freeze(input: { authority: TransactionAuthority; tokenAccount: PublicKey }): Promise<string> {
     return this.stablecoinProgram.methods
       .freezeAccount(input.tokenAccount)
       .accounts({
@@ -426,7 +543,7 @@ export class SolanaStablecoin {
       .rpc();
   }
 
-  async thaw(input: { authority: Signer; tokenAccount: PublicKey }): Promise<string> {
+  async thaw(input: { authority: TransactionAuthority; tokenAccount: PublicKey }): Promise<string> {
     return this.stablecoinProgram.methods
       .thawAccount(input.tokenAccount)
       .accounts({
@@ -440,7 +557,7 @@ export class SolanaStablecoin {
       .rpc();
   }
 
-  async pause(authority: Signer): Promise<string> {
+  async pause(authority: TransactionAuthority): Promise<string> {
     return this.stablecoinProgram.methods
       .pause()
       .accounts({
@@ -452,7 +569,7 @@ export class SolanaStablecoin {
       .rpc();
   }
 
-  async unpause(authority: Signer): Promise<string> {
+  async unpause(authority: TransactionAuthority): Promise<string> {
     return this.stablecoinProgram.methods
       .unpause()
       .accounts({
@@ -464,7 +581,7 @@ export class SolanaStablecoin {
       .rpc();
   }
 
-  async updateMinter(authority: Signer, input: UpdateMinterInput): Promise<string> {
+  async updateMinter(authority: TransactionAuthority, input: UpdateMinterInput): Promise<string> {
     const minterRole = SolanaStablecoin.deriveMinterRolePda(
       this.addresses.config,
       input.minter,
@@ -490,7 +607,7 @@ export class SolanaStablecoin {
       .rpc();
   }
 
-  async updateRoles(authority: Signer, input: UpdateRolesInput): Promise<string> {
+  async updateRoles(authority: TransactionAuthority, input: UpdateRolesInput): Promise<string> {
     return this.stablecoinProgram.methods
       .updateRoles({
         pauser: input.pauser ?? null,
@@ -508,7 +625,7 @@ export class SolanaStablecoin {
       .rpc();
   }
 
-  async transferAuthority(authority: Signer, newMaster: PublicKey): Promise<string> {
+  async transferAuthority(authority: TransactionAuthority, newMaster: PublicKey): Promise<string> {
     return this.stablecoinProgram.methods
       .transferAuthority(newMaster)
       .accounts({
@@ -521,7 +638,11 @@ export class SolanaStablecoin {
   }
 
   public readonly compliance = {
-    blacklistAdd: async (authority: Signer, wallet: PublicKey, reason: string): Promise<string> => {
+    blacklistAdd: async (
+      authority: TransactionAuthority,
+      wallet: PublicKey,
+      reason: string,
+    ): Promise<string> => {
       await this.assertComplianceEnabled();
       const complianceRecord = SolanaStablecoin.deriveComplianceRecordPda(
         this.addresses.mint,
@@ -543,7 +664,7 @@ export class SolanaStablecoin {
         .rpc();
     },
 
-    blacklistRemove: async (authority: Signer, wallet: PublicKey): Promise<string> => {
+    blacklistRemove: async (authority: TransactionAuthority, wallet: PublicKey): Promise<string> => {
       await this.assertComplianceEnabled();
       const complianceRecord = SolanaStablecoin.deriveComplianceRecordPda(
         this.addresses.mint,
@@ -568,9 +689,21 @@ export class SolanaStablecoin {
     seize: async (input: SeizeInput): Promise<string> => {
       await this.assertComplianceEnabled();
 
+      const extraAccountMetaList = this.addresses.extraAccountMetaList;
+      const hookConfig = this.addresses.transferHookConfig;
+      if (!extraAccountMetaList || !hookConfig) {
+        throw new Error('Transfer hook accounts are not configured for this stablecoin');
+      }
+
+      const destinationAccount = await this.getTokenAccount(input.destinationTokenAccount);
       const complianceRecord = SolanaStablecoin.deriveComplianceRecordPda(
         this.addresses.mint,
         input.sourceOwner,
+        this.stablecoinProgramId,
+      );
+      const destinationComplianceRecord = SolanaStablecoin.deriveComplianceRecordPda(
+        this.addresses.mint,
+        destinationAccount.owner,
         this.stablecoinProgramId,
       );
 
@@ -586,6 +719,11 @@ export class SolanaStablecoin {
           source: input.sourceTokenAccount,
           destination: input.destinationTokenAccount,
           sourceComplianceRecord: complianceRecord,
+          destinationComplianceRecord,
+          transferHookProgram: this.transferHookProgramId,
+          extraAccountMetaList,
+          hookConfig,
+          stablecoinProgram: this.stablecoinProgramId,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .signers(this.optionalSigner(input.authority))
@@ -593,12 +731,16 @@ export class SolanaStablecoin {
     },
   };
 
-  private optionalSigner(authority: Signer): Signer[] {
+  private optionalSigner(authority: TransactionAuthority): Signer[] {
     if (authority.publicKey.equals(this.payer.publicKey)) {
       return [];
     }
 
-    return [authority];
+    if (!isSigner(authority)) {
+      throw new Error('Non-payer authorities must be provided as Signers.');
+    }
+
+    return isSigner(authority) ? [authority] : [];
   }
 
   private async getTokenAccount(tokenAccount: PublicKey): Promise<SplTokenAccount> {

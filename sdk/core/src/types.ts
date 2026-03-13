@@ -1,8 +1,12 @@
+import type { Wallet } from '@coral-xyz/anchor';
 import type { PublicKey, Signer } from '@solana/web3.js';
 import { Presets } from './presets.js';
 
+export type TransactionAuthority = Signer | Wallet;
+
 export interface StablecoinAddresses {
   mint: PublicKey;
+  metadata?: PublicKey;
   config: PublicKey;
   masterMinterRole: PublicKey;
   transferHookConfig?: PublicKey;
@@ -26,8 +30,8 @@ export interface ExtensionConfiguration {
 }
 
 export interface PresetCreateParams {
-  payer: Signer;
-  authority?: Signer;
+  payer: TransactionAuthority;
+  authority?: TransactionAuthority;
   preset: Presets;
   name: string;
   symbol: string;
@@ -41,8 +45,8 @@ export interface PresetCreateParams {
 }
 
 export interface CustomCreateParams {
-  payer: Signer;
-  authority?: Signer;
+  payer: TransactionAuthority;
+  authority?: TransactionAuthority;
   name: string;
   symbol: string;
   uri: string;
@@ -74,7 +78,7 @@ export interface UpdateRolesInput {
 }
 
 export interface SeizeInput {
-  authority: Signer;
+  authority: TransactionAuthority;
   sourceTokenAccount: PublicKey;
   destinationTokenAccount: PublicKey;
   sourceOwner: PublicKey;

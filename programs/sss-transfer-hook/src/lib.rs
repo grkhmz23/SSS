@@ -10,7 +10,7 @@ use spl_transfer_hook_interface::{
     instruction::{ExecuteInstruction, TransferHookInstruction},
 };
 
-declare_id!("BT3pkBpsY47WdNCePzW4ZVi9F7HsEQL7UjiVQevVLJWo");
+declare_id!("CHfiQPpbATb9qDbYMA8sRKPxRu3sYHdMW4s4JG4xJt1H");
 
 const HOOK_CONFIG_SEED: &[u8] = b"hook-config";
 const COMPLIANCE_RECORD_SEED: &[u8] = b"compliance";
@@ -437,6 +437,11 @@ pub struct HookConfig {
 pub struct StablecoinConfigSnapshot {
     pub bump: u8,
     pub mint: Pubkey,
+    pub preset: u8,
+    pub decimals: u8,
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
     pub master_authority: Pubkey,
     pub pauser: Pubkey,
     pub burner: Pubkey,
@@ -449,6 +454,7 @@ pub struct StablecoinConfigSnapshot {
     pub permanent_delegate_enabled: bool,
     pub transfer_hook_enabled: bool,
     pub default_account_frozen: bool,
+    pub transfer_hook_program: Pubkey,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
