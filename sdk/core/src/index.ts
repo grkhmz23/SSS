@@ -3,6 +3,7 @@ import {
   TOKEN_2022_PROGRAM_ID,
   AccountState,
   ExtensionType,
+  createAssociatedTokenAccountIdempotentInstruction,
   createInitializeDefaultAccountStateInstruction,
   createInitializeMetadataPointerInstruction,
   createInitializeMint2Instruction,
@@ -360,6 +361,25 @@ export class SolanaStablecoin {
       isSigner(authority) && !authority.publicKey.equals(payer.publicKey) ? [authority] : [],
       { commitment: 'confirmed' },
     );
+
+    // When treasury is provided as an owner wallet, create its Token-2022 ATA up front
+    // so later seize/compliance flows have a real destination account on-chain.
+    if (PublicKey.isOnCurve(roles.treasury.toBytes())) {
+      const createTreasuryAtaInstruction = createAssociatedTokenAccountIdempotentInstruction(
+        payer.publicKey,
+        treasuryTokenAccount,
+        roles.treasury,
+        mint.publicKey,
+        TOKEN_2022_PROGRAM_ID,
+      );
+      await signAndSendTransaction(
+        connection,
+        payer,
+        new Transaction().add(createTreasuryAtaInstruction),
+        [],
+        { commitment: 'confirmed' },
+      );
+    }
 
     let transferHookConfig: PublicKey | undefined;
     let extraAccountMetaList: PublicKey | undefined;
