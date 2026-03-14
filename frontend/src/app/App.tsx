@@ -73,6 +73,57 @@ export function App() {
                   Demo Video
                 </a>
               </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-zinc-400">Documentation:</span>
+                <a
+                  href="https://github.com/grkhmz23/SSS/blob/main/README.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-300 transition-colors hover:text-white"
+                >
+                  README
+                </a>
+                <a
+                  href="https://github.com/grkhmz23/SSS/blob/main/docs/SDK.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-300 transition-colors hover:text-white"
+                >
+                  SDK
+                </a>
+                <a
+                  href="https://github.com/grkhmz23/SSS/blob/main/docs/ARCHITECTURE.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-300 transition-colors hover:text-white"
+                >
+                  Architecture
+                </a>
+                <a
+                  href="https://github.com/grkhmz23/SSS/blob/main/docs/OPERATIONS.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-300 transition-colors hover:text-white"
+                >
+                  Operations
+                </a>
+                <a
+                  href="https://github.com/grkhmz23/SSS/blob/main/docs/COMPLIANCE.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-300 transition-colors hover:text-white"
+                >
+                  Compliance
+                </a>
+                <a
+                  href="https://github.com/grkhmz23/SSS/blob/main/docs/API.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-emerald-300 transition-colors hover:text-white"
+                >
+                  API
+                </a>
+              </div>
             </div>
             <span className="font-mono text-zinc-400">
               Devnet programs: 5C7L...XkEL / CHfi...Jt1H
