@@ -243,6 +243,7 @@ export class SssAdapter {
     return {
       address: session.client.addresses.mint.toBase58(),
       configAddress: session.client.addresses.config.toBase58(),
+      masterAuthority: config.masterAuthority.toBase58(),
       preset: metadata.preset,
       name: onchainMetadata?.name ?? metadata.name,
       symbol: onchainMetadata?.symbol ?? metadata.symbol,

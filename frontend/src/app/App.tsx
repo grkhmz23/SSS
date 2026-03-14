@@ -15,6 +15,7 @@ export function App() {
     setActiveTab,
     summary,
     saveLockfile,
+    clearSession,
     environment,
     walletAddress,
     operatorSigner,
@@ -31,6 +32,7 @@ export function App() {
         setActiveTab={setActiveTab}
         configLoaded={Boolean(summary)}
         onSaveLockfile={saveLockfile}
+        onClearSession={clearSession}
       />
       <main className="relative z-10 flex min-h-screen flex-1 flex-col">
         <Header

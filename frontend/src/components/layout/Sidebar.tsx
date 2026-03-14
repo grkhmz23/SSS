@@ -12,6 +12,7 @@ interface SidebarProps {
   setActiveTab: (value: string) => void;
   configLoaded: boolean;
   onSaveLockfile: () => void;
+  onClearSession: () => void;
 }
 
 const navItems = [
@@ -27,6 +28,7 @@ export function Sidebar({
   setActiveTab,
   configLoaded,
   onSaveLockfile,
+  onClearSession,
 }: SidebarProps) {
   return (
     <aside className="hidden w-72 flex-col border-r border-white/10 bg-black/40 backdrop-blur-3xl md:flex">
@@ -75,9 +77,14 @@ export function Sidebar({
       </nav>
       {configLoaded ? (
         <div className="border-t border-white/5 bg-white/[0.02] p-6">
-          <Button variant="secondary" className="w-full" onClick={onSaveLockfile}>
-            Export Lockfile
-          </Button>
+          <div className="space-y-3">
+            <Button variant="secondary" className="w-full" onClick={onSaveLockfile}>
+              Export Lockfile
+            </Button>
+            <Button variant="outline" className="w-full" onClick={onClearSession}>
+              New Deployment
+            </Button>
+          </div>
         </div>
       ) : null}
     </aside>

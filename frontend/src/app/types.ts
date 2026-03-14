@@ -4,6 +4,7 @@ export type Environment = 'mainnet-beta' | 'devnet' | 'localnet';
 export interface StablecoinSummary {
   address: string;
   configAddress: string;
+  masterAuthority: string;
   preset: Preset;
   name: string;
   symbol: string;

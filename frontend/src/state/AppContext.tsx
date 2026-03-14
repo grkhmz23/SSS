@@ -59,6 +59,7 @@ interface AppContextValue extends SessionState {
   setActiveTab: (value: string) => void;
   setRpcUrl: (value: string) => void;
   dismissNotification: (id: string) => void;
+  clearSession: () => void;
   importOperatorSigner: (raw: string) => Promise<void>;
   clearOperatorSigner: () => void;
   loadLockfile: (raw?: string) => Promise<void>;
@@ -133,6 +134,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function dismissNotification(id: string) {
     setNotifications((current) => current.filter((entry) => entry.id !== id));
+  }
+
+  function clearSession() {
+    window.localStorage.removeItem(LOCKFILE_STORAGE_KEY);
+    setLockfile(null);
+    setSession(null);
+    setSummary(null);
+    setMinters([]);
+    setHolders([]);
+    setLogs([]);
+    setActiveTab('dashboard');
   }
 
   async function refreshFromSession(nextSession: ActiveSession) {
@@ -382,6 +394,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })();
   }, [environment, lockfile, rpcUrl, runtimeAuthority, session]);
 
+  const visibleSummary =
+    summary && runtimeAuthority && summary.masterAuthority === runtimeAuthority.publicKey.toBase58()
+      ? summary
+      : null;
+
   const value = useMemo<AppContextValue>(
     () => ({
       activeTab,
@@ -391,13 +408,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       walletAddress: publicKey?.toBase58() ?? null,
       notifications,
       lockfile,
-      summary,
-      minters,
-      holders,
-      logs,
+      summary: visibleSummary,
+      minters: visibleSummary ? minters : [],
+      holders: visibleSummary ? holders : [],
+      logs: visibleSummary ? logs : [],
       setActiveTab,
       setRpcUrl,
       dismissNotification,
+      clearSession,
       importOperatorSigner: importOperator,
       clearOperatorSigner: () => setOperatorSigner(null),
       loadLockfile: loadLockfileAction,
@@ -407,7 +425,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshMinters,
       performOperation,
     }),
-    [activeTab, environment, rpcUrl, operatorSigner, publicKey, notifications, lockfile, summary, minters, holders, logs],
+    [activeTab, environment, rpcUrl, operatorSigner, publicKey, notifications, lockfile, visibleSummary, minters, holders, logs],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -8,7 +8,7 @@ import { useApp } from '../../state/AppContext';
 import { CreateFlow } from '../create/CreateFlow';
 
 export function DashboardView() {
-  const { summary, setActiveTab, environment, rpcUrl } = useApp();
+  const { summary, setActiveTab, environment, rpcUrl, clearSession } = useApp();
 
   if (!summary) {
     return <CreateFlow />;
@@ -37,6 +37,9 @@ export function DashboardView() {
           </div>
         </div>
         <div className="flex gap-3">
+          <Button variant="outline" onClick={clearSession}>
+            New Deployment
+          </Button>
           <Button variant="secondary" onClick={() => setActiveTab('operations')}>
             Open Operations
           </Button>
